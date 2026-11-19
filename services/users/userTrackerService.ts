@@ -1,12 +1,11 @@
 import { supabase } from '../core/supabase';
-import { getBrazilTimestamp } from '../../utils/dateUtils';
 
 /**
  * Posição do rastreador em public.users_tracker (migration 20261111), fora da
  * tabela users para não disparar o Realtime de users a cada envio de posição.
  *
- * Antes da migration ser aplicada tudo continua funcionando pelo caminho antigo
- * (colunas latitude/longitude/tracker_* de users).
+ * As colunas latitude/longitude/tracker_* de users foram removidas pela
+ * 20261122_drop_users_legacy_tracker_columns.sql: não há mais caminho antigo.
  */
 
 const TRACKER_COLUMNS = ['latitude', 'longitude', 'tracker_accuracy', 'tracked_at', 'tracker_heartbeat_at'] as const;
@@ -18,8 +17,6 @@ let trackerTableMissing = false;
 // novas (migration 20261111 não aplicada) → usa o caminho antigo.
 const isMissingRelation = (error: { code?: string } | null) =>
     !!error && ['42P01', 'PGRST205', '42703', 'PGRST204'].includes(error.code || '');
-const isMissingFunction = (error: { code?: string } | null) =>
-    !!error && (error.code === 'PGRST202' || error.code === '42883');
 
 /**
  * Substitui, nas linhas de users recebidas, latitude/longitude/tracker_* pelos
@@ -55,10 +52,10 @@ export async function applyTrackerPositions<T extends { id?: unknown }>(rows: T[
 
 /**
  * Envia a posição do usuário logado (web / app sem o serviço nativo).
- * Usa fn_users_tracker_report_session; sem a migration, grava em users como antes.
+ * Usa fn_users_tracker_report_session (a função identifica o usuário pela sessão).
  */
 export async function reportSessionLocation(
-    userId: string,
+    _userId: string,
     latitude: number,
     longitude: number,
     accuracy: number | null
@@ -68,22 +65,5 @@ export async function reportSessionLocation(
         p_longitude: longitude,
         p_accuracy: accuracy,
     });
-    if (!error) return;
-
-    if (!isMissingFunction(error)) {
-        console.error('[userTracker] Erro ao enviar posição:', error);
-        return;
-    }
-
-    // Fallback: banco ainda sem a migration 20261111.
-    const now = getBrazilTimestamp();
-    const payload: Record<string, unknown> = {
-        latitude,
-        longitude,
-        tracker_heartbeat_at: now,
-        tracked_at: now,
-    };
-    if (accuracy !== null) payload.tracker_accuracy = accuracy;
-    const { error: updateError } = await supabase.from('users').update(payload).eq('id', userId);
-    if (updateError) console.error('[userTracker] Erro ao gravar posição (fallback):', updateError);
+    if (error) console.error('[userTracker] Erro ao enviar posição:', error);
 }

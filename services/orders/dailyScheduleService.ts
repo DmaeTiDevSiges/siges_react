@@ -14,6 +14,7 @@
 import { supabase } from '../core/supabase';
 import { getPublicImageUrl } from '../media/imageUtils';
 import { ordersService } from './ordersService';
+import { sortColumnsByLeaderName } from './dailyScheduleSort';
 
 export const DAILY_SCHEDULE_STATUS = {
     NOT_PROGRAMMED: 1,
@@ -234,8 +235,8 @@ export const dailyScheduleService = {
         const firstColumnOfTeam = new Map<string, string>();
         for (const [teamId, list] of leadersByTeam) firstColumnOfTeam.set(teamId, scheduleColumnId(teamId, list[0].id.toString()));
 
-        // Um card por líder, na ordem das equipes (a equipe se repete quando tem mais de um líder).
-        return teams.flatMap((t: any) => {
+        // Um card por líder (a equipe se repete quando tem mais de um líder), em ordem alfabética do líder.
+        const columns = teams.flatMap((t: any) => {
             const teamId = t.id.toString();
             const parentColumn = t.parent_id ? firstColumnOfTeam.get(t.parent_id.toString()) : undefined;
             return (leadersByTeam.get(teamId) || []).map((leader: any): DailyScheduleTeam => {
@@ -255,6 +256,7 @@ export const dailyScheduleService = {
                 };
             });
         });
+        return sortColumnsByLeaderName(columns);
     },
 
     /**

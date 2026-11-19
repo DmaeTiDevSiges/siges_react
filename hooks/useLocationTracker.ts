@@ -64,8 +64,8 @@ type BlockReason = null | 'permission_denied' | 'location_services_disabled' | '
 
 /**
  * Hook that tracks user location in background (works even when app is minimized/screen locked).
- * Updates users.latitude, users.longitude, users.tracker_heartbeat_at, users.tracked_at 
- * and users.tracker_accuracy on each accepted position update.
+ * Updates users_tracker (latitude, longitude, tracker_heartbeat_at, tracked_at
+ * and tracker_accuracy) on each accepted position update.
  *
  * On Android 10+ the permission flow is split into two steps:
  *   1) this hook auto-requests foreground location on first run;

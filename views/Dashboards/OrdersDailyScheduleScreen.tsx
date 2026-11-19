@@ -1264,7 +1264,10 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     contractLabel: contract ? (contract.description || contractLabel(contract)) : '',
                     dateLabel,
                     teams: reportTeams,
-                    emptyTeams: reportEmptyTeams,
+                    // Mesma regra do título da equipe: descrição, sem o código.
+                    emptyTeams: visibleTeams
+                        .filter(t => (board?.columns[t.id] || []).length === 0)
+                        .map(t => `${t.name || t.code} (${t.leaderName})`),
                     priorities: reportPriorities,
                 }) : ''}
             />

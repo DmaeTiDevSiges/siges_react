@@ -38,7 +38,8 @@ export const buildDailyScheduleMessage = (input: DailyScheduleMessageInput): str
     );
 
     for (const team of teams) {
-        const title = `👷 *${[team.code, team.name].filter(Boolean).join(' - ')}*${team.leaderName ? ` — Líder: ${team.leaderName}` : ''}`;
+        // Só a descrição da equipe; o código só entra se ela não tiver descrição.
+        const title = `👷 *${team.name || team.code}*${team.leaderName ? ` — Líder: ${team.leaderName}` : ''}`;
         blocks.push([title, ...team.orders.map((o, i) => orderLine(i + 1, o))].join('\n'));
     }
 

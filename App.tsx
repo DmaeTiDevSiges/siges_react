@@ -1099,7 +1099,7 @@ const AppContent: React.FC = () => {
     }
   }, [notifications.length, currentUser?.id]);
 
-  // Background location tracker — updates users.latitude, users.longitude and users.tracker_heartbeat_at
+  // Background location tracker — grava a posição e o heartbeat em users_tracker
   const hasOpenVisit = !!currentUser?.isOvInProgress || (!!currentUser?.ovIdInProgress && Number(currentUser.ovIdInProgress) > 0);
   const { isLocationBlocked, blockReason } = useLocationTracker(
     currentUser?.id,

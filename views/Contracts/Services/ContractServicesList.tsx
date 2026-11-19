@@ -11,6 +11,7 @@ import { DecimalInput } from '../../../components/ui/DecimalInput';
 import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { IconButton } from '../../../components/ui/IconButton';
 import { Loading } from '../../../components/ui/Loading';
+import { AddContractServiceModal } from '../../../components/contracts/AddContractServiceModal';
 
 
 interface ContractServicesListProps {
@@ -25,6 +26,7 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
     const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
     const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
     const [editingService, setEditingService] = useState<ContractService | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -137,7 +139,8 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
     return (
         <div className="mt-6 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 pb-10">
             {/* Search and Add Section */}
-            <div className="relative">
+            <div className="flex items-start gap-3">
+            <div className="relative flex-1 min-w-0">
                 <SearchInput
                     placeholder="Buscar serviços (por nome ou código)..."
                     value={searchQuery}
@@ -173,6 +176,14 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
                         )}
                     </div>
                 )}
+            </div>
+
+            <IconButton ariaLabel="Adicionar serviço"
+                icon="add"
+                variant="primary"
+                size="lg"
+                onClick={() => setIsAddModalOpen(true)}
+            />
             </div>
 
             {/* List of Services */}
@@ -240,6 +251,14 @@ export const ContractServicesList: React.FC<ContractServicesListProps> = ({ cont
                     </div>
                 )}
             </div>
+
+            <AddContractServiceModal
+                isOpen={isAddModalOpen}
+                contractId={contractId}
+                existingServiceIds={contractServices.map(cs => String(cs.serviceId))}
+                onClose={() => setIsAddModalOpen(false)}
+                onSaved={loadData}
+            />
 
             {/* Edit Modal */}
             <Modal

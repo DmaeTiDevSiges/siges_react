@@ -1568,8 +1568,7 @@ export const usersService = {
         accuracy: number | null = null
     ): Promise<void> {
         try {
-            // users_tracker via RPC (não dispara o Realtime de users);
-            // sem a migration 20261111, grava em users como antes.
+            // users_tracker via RPC (não dispara o Realtime de users).
             await reportSessionLocation(userId, latitude, longitude, accuracy);
         } catch (error) {
             console.error('[usersService] Exception updating user location:', error);
