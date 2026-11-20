@@ -10,6 +10,9 @@ import { AccessDenied } from '../../components/permissions/AccessDenied';
 import { Card } from '../../components/ui/Card';
 import { OrderVisitProcessingButton } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { useKeyboard } from '../../hooks/useKeyboard';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { canEditVisitTimes } from '../../utils/visitTimes';
+import { EditVisitTimesModal } from '../../components/ordersVisits/EditVisitTimesModal';
 import { IconButton } from '../../components/ui/IconButton';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
 
@@ -84,6 +87,9 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isReversingApproval, setIsReversingApproval] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [isEditTimesOpen, setIsEditTimesOpen] = useState(false);
+    const [isSavingTimes, setIsSavingTimes] = useState(false);
+    const { isConnected } = useNetworkStatus();
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [evaluationCount, setEvaluationCount] = useState(0);
     const [totalRequirements, setTotalRequirements] = useState(0);
@@ -583,6 +589,23 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         }
     };
 
+    const handleConfirmEditTimes = async (data: { startedAt: string; endedAt: string | null }) => {
+        if (!visit) return;
+        try {
+            setIsSavingTimes(true);
+            await dataService.editVisitTimes(visit.id, data.startedAt, data.endedAt);
+            toast.success('Horários da visita atualizados.');
+            setIsEditTimesOpen(false);
+            await refreshVisit();
+            window.dispatchEvent(new Event('refresh_dashboard'));
+        } catch (error) {
+            console.error('Error editing visit times:', error);
+            toast.error(error instanceof Error ? error.message : 'Erro ao atualizar horários');
+        } finally {
+            setIsSavingTimes(false);
+        }
+    };
+
     const handleDeleteVisit = () => {
         setIsDeleteModalOpen(true);
     };
@@ -678,7 +701,11 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 !visit.isFiled &&
                                 !visit.approvedAt
                             ) ? handleDeleteVisit : undefined}
-                            onEditVisit={() => toast.success('Funcionalidade em desenvolvimento')}
+                            onEditVisit={canEditVisitTimes({
+                                isAdminSuper: currentUser?.isAdminSuper,
+                                visit,
+                                isOnline: isConnected
+                            }) ? () => setIsEditTimesOpen(true) : undefined}
                             isReportLoading={isReporting}
                             isApproveLoading={isApproving}
                             isDisapproveLoading={isDisapproving}
@@ -932,6 +959,17 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 onConfirm={handleConfirmDisapproveVisit}
                 isLoading={isDisapproving}
             />
+
+            {/* Modal de edição dos horários (isAdminSuper) */}
+            {visit && (
+                <EditVisitTimesModal
+                    isOpen={isEditTimesOpen}
+                    onClose={() => setIsEditTimesOpen(false)}
+                    onConfirm={handleConfirmEditTimes}
+                    isLoading={isSavingTimes}
+                    visit={visit}
+                />
+            )}
 
             {/* Modal de Exclusão (soft delete) da Visita */}
             <DeleteVisitModal
