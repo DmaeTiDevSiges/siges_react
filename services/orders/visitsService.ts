@@ -563,6 +563,35 @@ export const visitsService = {
         };
     },
 
+    /**
+     * Corrige início/fim da visita (somente isAdminSuper, visita não aprovada).
+     * Permissão e validações ficam no banco (flow_order_visit_update_times_v1).
+     * `endedAt` é null para visita em andamento. Só online.
+     */
+    async editVisitTimes(
+        visitId: string | number,
+        startedAt: string,
+        endedAt: string | null
+    ): Promise<void> {
+        const { data, error } = await supabase.rpc('flow_order_visit_update_times_v1', {
+            payload: {
+                visit_id: Number(visitId),
+                started_at: toBrazilNaiveDateTime(startedAt),
+                ended_at: endedAt ? toBrazilNaiveDateTime(endedAt) : null
+            }
+        });
+
+        if (error) {
+            console.error('Error editing visit times:', error);
+            throw error;
+        }
+
+        const result = data as { success: boolean; message?: string };
+        if (!result?.success) {
+            throw new Error(result?.message || 'Erro ao atualizar horários da visita.');
+        }
+    },
+
     // -------------------------------------------------------------------------
     // ACTIVE VISIT
     // -------------------------------------------------------------------------

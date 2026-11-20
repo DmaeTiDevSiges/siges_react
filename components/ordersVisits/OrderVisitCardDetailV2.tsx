@@ -50,7 +50,7 @@ const SUSPENDED = 6;
 const OS_HIDDEN = 8;
 
 export const OrderVisitCardDetailV2: React.FC<OrderVisitCardDetailProps> = ({
-    visit, team, onRemoveTeamMember, onAddTeamMember, onEndVisit, onDeleteVisit, onReportVisit, onApproveVisit,
+    visit, team, onRemoveTeamMember, onAddTeamMember, onEndVisit, onDeleteVisit, onEditVisit, onReportVisit, onApproveVisit,
     onDisapproveVisit, onFileVisit, onMarkAsRevised, onReverseApproval, onViewOrder,
     isReportLoading = false, isApproveLoading = false, isDisapproveLoading = false, isFileLoading = false,
     isRevising = false, isReverseApprovalLoading = false, hideHeaderActions = false,
@@ -219,6 +219,7 @@ export const OrderVisitCardDetailV2: React.FC<OrderVisitCardDetailProps> = ({
             {onReverseApproval && (
                 <ActionButton icon="undo" label="Estornar aprovação" loadingLabel="Carregando..." loading={isReverseApprovalLoading} tone="neutral" onClick={onReverseApproval} />
             )}
+            {onEditVisit && <ActionButton icon="edit_calendar" label="Editar horários" tone="neutral" onClick={onEditVisit} />}
             {onDeleteVisit && <ActionButton icon="delete" label="Excluir visita" tone="ghostDanger" onClick={onDeleteVisit} />}
         </div>
     );

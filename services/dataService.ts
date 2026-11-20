@@ -1418,6 +1418,7 @@ export const dataService = {
     startOrderVisit: (...args: Parameters<typeof visitsService.startOrderVisit>): ReturnType<typeof visitsService.startOrderVisit> => visitsService.startOrderVisit(...args),
     getReassignPreview: (...args: Parameters<typeof visitsService.getReassignPreview>): ReturnType<typeof visitsService.getReassignPreview> => visitsService.getReassignPreview(...args),
     reassignOrderVisit: (...args: Parameters<typeof visitsService.reassignOrderVisit>): ReturnType<typeof visitsService.reassignOrderVisit> => visitsService.reassignOrderVisit(...args),
+    editVisitTimes: (...args: Parameters<typeof visitsService.editVisitTimes>): ReturnType<typeof visitsService.editVisitTimes> => visitsService.editVisitTimes(...args),
 
     getActiveOrderVisit: (...args: Parameters<typeof visitsService.getActiveOrderVisit>): ReturnType<typeof visitsService.getActiveOrderVisit> => visitsService.getActiveOrderVisit(...args),
 
