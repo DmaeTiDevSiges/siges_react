@@ -50,3 +50,10 @@ Qualquer usuário não `isAdminSuper` conseguir alterar essas datas, inclusive c
 
 ## Deixado ao construtor
 Nome exato do campo de arquivamento e da fonte do `isAdminSuper` no banco (conferir no banco vivo); texto das mensagens; layout do modal.
+
+## Decisões após a revisão final (v1.1.0 do RPC)
+- **Início sempre corrige o log:** mudar o início corrige a linha de status 5 de `orders_statuses_logs`, mesmo com a visita encerrada; `orders.status_at` só acompanha se ainda for o início antigo.
+- **SS pai:** o log da SS pai acompanha quando o trigger de herança muda só o `status_at` dela.
+- **Sobreposição (escolha minha):** recusa se o novo intervalo se sobrepõe a outra visita do **mesmo líder** (pontas encostadas valem; visita aberta conta como sem fim). Não considera outras equipes da mesma OS.
+- **Sem mudança:** reenviar os mesmos horários retorna sucesso sem gravar (não reescreve `ov_updated_at` nem a auditoria).
+- **Fora do escopo:** `orders.updated_at/updated_user_id` não são gravados nos UPDATEs da OS (decisão do usuário).
