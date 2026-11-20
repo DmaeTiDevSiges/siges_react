@@ -337,6 +337,17 @@ const OrderVisitCardDetailV1: React.FC<OrderVisitCardDetailProps> = ({
                 </button>
             )}
 
+            {/* Editar horários — só isAdminSuper (a tela decide passando onEditVisit) */}
+            {onEditVisit && (
+                <button
+                    onClick={onEditVisit}
+                    className="w-full mt-4 py-3 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-black uppercase tracking-widest text-xs rounded-2xl border border-slate-200 dark:border-slate-700 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                    <span className="material-symbols-outlined text-[18px]">edit_calendar</span>
+                    Editar horários
+                </button>
+            )}
+
             {/* Delete Visit Button — soft delete (visita encerrada, não arquivada/aprovada) */}
             {onDeleteVisit && (
                 <button

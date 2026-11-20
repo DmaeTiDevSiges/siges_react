@@ -450,3 +450,19 @@ describe('OrderVisitCardDetail — visual novo (v2)', () => {
         });
     });
 });
+
+describe.each([[false, 'visual atual (v1)'], [true, 'visual novo (v2)']])('OrderVisitCardDetail — Editar horários (%s)', (isV2, _nome) => {
+    beforeEach(() => { mockUi.isV2 = isV2 as boolean; });
+
+    it('com onEditVisit mostra "Editar horários" e chama o tratador', () => {
+        const onEditVisit = jest.fn();
+        renderCard({ onEditVisit });
+        fireEvent.click(screen.getByRole('button', { name: /Editar horários/ }));
+        expect(onEditVisit).toHaveBeenCalledTimes(1);
+    });
+
+    it('sem onEditVisit o botão não aparece', () => {
+        renderCard();
+        expect(screen.queryByRole('button', { name: /Editar horários/ })).not.toBeInTheDocument();
+    });
+});
