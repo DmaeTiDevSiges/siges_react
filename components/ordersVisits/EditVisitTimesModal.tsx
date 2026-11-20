@@ -23,7 +23,8 @@ export const EditVisitTimesModal: React.FC<EditVisitTimesModalProps> = ({
     isLoading = false,
     visit
 }) => {
-    const isClosed = Number(visit.ovStatusId) === 2;
+    // "Encerrada" = tem ov_ended_at (mesmo critério do banco), não o ov_status_id
+    const isClosed = !!visit.ovEndedAt;
     const initialStart = toInput(visit.ovStartedAt);
     const initialEnd = isClosed ? toInput(visit.ovEndedAt) : '';
     const [startedAt, setStartedAt] = useState(initialStart);

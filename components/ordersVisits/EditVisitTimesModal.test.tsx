@@ -37,6 +37,15 @@ describe('EditVisitTimesModal', () => {
         await waitFor(() => expect(onConfirm).toHaveBeenCalledWith({ startedAt: '2026-11-10T08:30', endedAt: null }));
     });
 
+    it('encerrada é decidida por ov_ended_at: status 2 sem fim é tratada como aberta', async () => {
+        const inconsistent = { ovStatusId: 2, ovStartedAt: '2026-11-10T09:00:00', ovEndedAt: null } as never;
+        const { onConfirm } = setup({ visit: inconsistent });
+        expect(screen.queryByLabelText('Data/hora de fim')).not.toBeInTheDocument();
+        fireEvent.change(startInput(), { target: { value: '2026-11-10T08:30' } });
+        fireEvent.click(save());
+        await waitFor(() => expect(onConfirm).toHaveBeenCalledWith({ startedAt: '2026-11-10T08:30', endedAt: null }));
+    });
+
     it('sem alteração o botão Salvar fica desabilitado', () => {
         setup();
         expect(save()).toBeDisabled();

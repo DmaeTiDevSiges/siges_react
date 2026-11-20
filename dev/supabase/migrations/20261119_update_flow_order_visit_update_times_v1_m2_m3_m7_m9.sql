@@ -241,6 +241,8 @@ GRANT EXECUTE ON FUNCTION public.flow_order_visit_update_times_v1(jsonb) TO auth
 COMMENT ON FUNCTION public.flow_order_visit_update_times_v1(jsonb) IS
 'Flow: update-visit-times v1.1.0 — Corrige início/fim da visita (somente is_admin_super, visita não aprovada). orders.status_at e logs (OS e SS pai) acompanham; recusa sobreposição com outra visita do mesmo líder; sem mudança não grava.';
 
+NOTIFY pgrst, 'reload schema';
+
 -- =============================================================================
 -- ROTEIRO DE VERIFICAÇÃO MANUAL desta versão (SQL Editor, SEMPRE com ROLLBACK)
 --   -- m) M9: reenviar exatamente os horários atuais (ou só sem segundos) ->
