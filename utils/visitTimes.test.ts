@@ -1,4 +1,4 @@
-import { canEditVisitTimes, validateVisitTimes } from './visitTimes';
+import { canEditVisitTimes, validateVisitTimes, invalidateVisitTimesQueries } from './visitTimes';
 
 const visit = (over: Record<string, unknown> = {}) =>
     ({ ovStatusId: 2, approvedAt: null, isFiled: false, ...over }) as never;
@@ -58,5 +58,15 @@ describe('validateVisitTimes', () => {
             .toBe('Não é permitido informar data/hora futura');
         expect(validateVisitTimes({ ...ok, endedAt: '2026-11-19T12:01' }))
             .toBe('Não é permitido informar data/hora futura');
+    });
+});
+
+describe('invalidateVisitTimesQueries', () => {
+    it('invalida as consultas de OS, visitas e painel do líder', () => {
+        const client = { invalidateQueries: jest.fn() };
+        invalidateVisitTimesQueries(client);
+        expect(client.invalidateQueries.mock.calls.map(c => c[0].queryKey)).toEqual([
+            ['orders'], ['visits'], ['leaderDashboard'],
+        ]);
     });
 });

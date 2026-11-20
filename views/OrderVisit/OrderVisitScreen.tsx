@@ -10,8 +10,9 @@ import { AccessDenied } from '../../components/permissions/AccessDenied';
 import { Card } from '../../components/ui/Card';
 import { OrderVisitProcessingButton } from '../../components/ordersVisits/OrderVisitProcessingButton';
 import { useKeyboard } from '../../hooks/useKeyboard';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { canEditVisitTimes } from '../../utils/visitTimes';
+import { canEditVisitTimes, invalidateVisitTimesQueries } from '../../utils/visitTimes';
 import { EditVisitTimesModal } from '../../components/ordersVisits/EditVisitTimesModal';
 import { IconButton } from '../../components/ui/IconButton';
 import { KeyboardAwareScrollView } from '../../components/ui/KeyboardAwareScrollView';
@@ -90,6 +91,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isEditTimesOpen, setIsEditTimesOpen] = useState(false);
     const [isSavingTimes, setIsSavingTimes] = useState(false);
     const { isConnected } = useNetworkStatus();
+    const queryClient = useQueryClient();
     const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
     const [evaluationCount, setEvaluationCount] = useState(0);
     const [totalRequirements, setTotalRequirements] = useState(0);
@@ -596,6 +598,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
             await dataService.editVisitTimes(visit.id, data.startedAt, data.endedAt);
             toast.success('Horários da visita atualizados.');
             setIsEditTimesOpen(false);
+            invalidateVisitTimesQueries(queryClient);
             await refreshVisit();
             window.dispatchEvent(new Event('refresh_dashboard'));
         } catch (error) {

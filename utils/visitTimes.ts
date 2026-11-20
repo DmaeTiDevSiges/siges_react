@@ -39,3 +39,13 @@ export const validateVisitTimes = (params: {
     if (isClosed && endedAt && endedAt < startedAt) return 'O fim não pode ser anterior ao início';
     return null;
 };
+
+/**
+ * Depois de salvar os horários, as telas que guardaram OS, visitas ou o painel do
+ * líder em cache (TanStack Query) devem rebuscar — senão mostram o horário antigo.
+ */
+export const invalidateVisitTimesQueries = (client: { invalidateQueries: (filters: { queryKey: readonly unknown[] }) => unknown }): void => {
+    (['orders', 'visits', 'leaderDashboard'] as const).forEach(key => {
+        void client.invalidateQueries({ queryKey: [key] });
+    });
+};
