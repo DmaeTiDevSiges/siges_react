@@ -147,6 +147,7 @@ export const OFFLINE_WRITE_METHODS = [
     'markOrderVisitAsRevised',
     'reverseOrderVisitApproval',
     'deleteOrderVisit',
+    'editVisitTimes',
     'changeOrderVisitAsset',
     'lockOrderVisitAsset',
     'unlockOrderVisitAsset',
