@@ -56,3 +56,6 @@ release/
 
 # WASM do MediaPipe (copiado de node_modules pelo vite.config.ts)
 public/mediapipe/wasm/
+
+# Worktrees do Claude Code (cada um é um checkout próprio)
+.claude/worktrees/

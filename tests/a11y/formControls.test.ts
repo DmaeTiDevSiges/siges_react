@@ -3,7 +3,7 @@ import * as path from 'path';
 import { findUnnamedFormControls } from './findUnnamedFormControls';
 
 const ROOT = path.resolve(__dirname, '../..');
-const SKIP = new Set(['node_modules', 'dist', 'dist-electron', 'android', 'ios', '.git', 'tests', 'coverage', 'storage', 'workers']);
+const SKIP = new Set(['node_modules', 'dist', 'dist-electron', 'android', 'ios', '.git', 'tests', 'coverage', 'storage', 'workers', '.claude']);
 
 const walk = (dir: string): string[] =>
     fs.readdirSync(dir, { withFileTypes: true }).flatMap(entry => {

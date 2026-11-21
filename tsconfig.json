@@ -33,6 +33,8 @@
     "workers",
     "dist",
     "ios",
-    "dev"
+    "android",
+    "dev",
+    ".claude"
   ]
 }

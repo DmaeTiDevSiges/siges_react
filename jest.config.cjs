@@ -10,6 +10,9 @@ module.exports = {
             preset: 'ts-jest',
             testEnvironment: 'node',
             testMatch: ['**/*.test.ts'],
+            // Worktrees do Claude Code são cópias do projeto: fora dos testes.
+            testPathIgnorePatterns: ['/node_modules/', '/.claude/'],
+            modulePathIgnorePatterns: ['<rootDir>/.claude/'],
             moduleNameMapper: alias,
             globals: { 'ts-jest': { tsconfig: 'tsconfig.json' } },
         },
@@ -20,7 +23,8 @@ module.exports = {
             testEnvironment: 'jsdom',
             testMatch: ['**/*.test.tsx'],
             // Teste legado que nunca rodou (mocks quebrados); fora até ser reescrito.
-            testPathIgnorePatterns: ['/node_modules/', 'DataQualityIndicator.test.tsx'],
+            testPathIgnorePatterns: ['/node_modules/', '/.claude/', 'DataQualityIndicator.test.tsx'],
+            modulePathIgnorePatterns: ['<rootDir>/.claude/'],
             setupFilesAfterEnv: ['<rootDir>/tests/setupUi.ts'],
             moduleNameMapper: {
                 ...alias,

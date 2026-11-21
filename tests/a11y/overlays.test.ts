@@ -3,7 +3,7 @@ import * as path from 'path';
 import { findTags, lineOf } from './jsxScan';
 
 const ROOT = path.resolve(__dirname, '../..');
-const SKIP = new Set(['node_modules', 'dist', 'dist-electron', 'android', 'ios', '.git', 'tests', 'coverage', 'storage', 'workers']);
+const SKIP = new Set(['node_modules', 'dist', 'dist-electron', 'android', 'ios', '.git', 'tests', 'coverage', 'storage', 'workers', '.claude']);
 /** Telas de carregamento/erro: cobrem a tela, mas não são diálogos (não há o que focar nem fechar). */
 const NOT_DIALOGS = new Set(['components/ui/Loading.tsx', 'components/ui/ErrorBoundary.tsx']);
 

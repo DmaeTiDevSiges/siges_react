@@ -9,7 +9,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 export default tseslint.config(
     {
         ignores: [
-            'dist/**', 'dist-electron/**', 'android/**', 'ios/**', 'node_modules/**', 'dev/**',
+            'dist/**', 'dist-electron/**', 'android/**', 'ios/**', 'node_modules/**', 'dev/**', '.claude/**',
             'workers/**', 'workflows/**', 'scripts/**', 'docs/**', 'public/**', 'electron/**', 'storage/**', 'patches/**',
             '**/*.test.ts', '**/*.test.tsx', 'tests/**',
             '*.config.js', '*.config.cjs', '*.config.ts',

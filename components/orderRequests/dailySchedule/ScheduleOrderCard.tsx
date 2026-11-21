@@ -86,83 +86,80 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                             : 'shadow-sm hover:shadow-md border-slate-200 dark:border-white/10'}`}
             title={scheduled ? `Já programada na equipe ${scheduledTeamCode || ''} neste dia` : undefined}
         >
-            <div className="flex items-start gap-2">
-                {/* Coluna esquerda: alça de arraste no topo, número (prioridade/sequência) no canto inferior. */}
-                {(handleProps || isOverlay || position != null) && (
-                    <div className="shrink-0 self-stretch -ml-2 flex flex-col items-center">
-                        {(handleProps || isOverlay) && (
-                            <button
-                                type="button"
-                                data-drag-handle
-                                {...handleProps}
-                                className="-my-1 py-1 rounded-md text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing touch-none"
-                                title="Arrastar a OS"
-                                aria-label={`Arrastar a OS ${order.orderMask}`}
-                            >
-                                <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
-                            </button>
+            {/* Número (prioridade/sequência) no canto superior esquerdo. */}
+            {position != null && (
+                <span className="absolute top-2 left-2 flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-black">
+                    {position}
+                </span>
+            )}
+            <div className={`min-w-0 ${position != null ? 'pl-7' : ''}`}>
+                <div className="flex items-center gap-1.5">
+                    <button
+                        type="button"
+                        onPointerDown={e => e.stopPropagation()}
+                        onClick={onOpenOrder}
+                        className="shrink-0 font-black text-sm text-slate-900 dark:text-white hover:text-primary hover:underline"
+                        title="Abrir OS"
+                    >
+                        {order.orderMask}
+                    </button>
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${status.className}`} title={order.statusDescription}>
+                        {status.label}
+                    </span>
+                    {showLock && (
+                        <span
+                            className="material-symbols-outlined text-[14px] text-slate-400"
+                            title="OS em execução — não pode ser movimentada"
+                        >
+                            lock
+                        </span>
+                    )}
+                    {order.priorityCode && (
+                        <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase" title={order.priorityDescription}>
+                            {order.priorityCode}
+                        </span>
+                    )}
+                </div>
+                <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5" title={order.unitDescription}>
+                    {order.unitDescription || '—'}
+                </p>
+                {(order.assetTagDescription || order.assetTagSubDescription) && (
+                    <p
+                        className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase truncate"
+                        title={[order.assetTagDescription, order.assetTagSubDescription].filter(Boolean).join(' / ')}
+                    >
+                        {order.assetTagDescription || 'Setor'}
+                        {order.assetTagSubDescription && (
+                            <span> / {order.assetTagSubDescription}</span>
                         )}
-                        {position != null && (
-                            <span className="mt-auto pt-2 flex items-center justify-center">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[11px] font-black">
-                                    {position}
-                                </span>
-                            </span>
-                        )}
-                    </div>
+                    </p>
                 )}
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                {order.requestedServices && (
+                    <p
+                        className={`text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-line break-words ${isOverlay ? 'line-clamp-2' : 'line-clamp-2 group-hover:line-clamp-none'}`}
+                    >
+                        {order.requestedServices}
+                    </p>
+                )}
+            </div>
+            {/* Rodapé: alça de arraste (esquerda), equipe (faixas), "já programada" e ações (direita). */}
+            {(handleProps || isOverlay || onOpenActions || showTeam || scheduled) && (
+                <div className={`flex items-center gap-1 mt-1.5 pt-1 -mb-1 ${showTeam ? 'border-t border-slate-100 dark:border-white/5' : ''}`}>
+                    {(handleProps || isOverlay) ? (
                         <button
                             type="button"
-                            onPointerDown={e => e.stopPropagation()}
-                            onClick={onOpenOrder}
-                            className="shrink-0 font-black text-sm text-slate-900 dark:text-white hover:text-primary hover:underline"
-                            title="Abrir OS"
+                            data-drag-handle
+                            {...handleProps}
+                            className="shrink-0 -ml-1.5 p-0.5 rounded-md text-slate-300 hover:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-grab active:cursor-grabbing touch-none"
+                            title="Arrastar a OS"
+                            aria-label={`Arrastar a OS ${order.orderMask}`}
                         >
-                            {order.orderMask}
+                            <span className="material-symbols-outlined text-[18px]">drag_indicator</span>
                         </button>
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${status.className}`} title={order.statusDescription}>
-                            {status.label}
-                        </span>
-                        {showLock && (
-                            <span
-                                className="material-symbols-outlined text-[14px] text-slate-400"
-                                title="OS em execução — não pode ser movimentada"
-                            >
-                                lock
-                            </span>
-                        )}
-                        {order.priorityCode && (
-                            <span className="ml-auto text-[10px] font-bold text-slate-400 uppercase" title={order.priorityDescription}>
-                                {order.priorityCode}
-                            </span>
-                        )}
-                    </div>
-                    <p className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 truncate mt-0.5" title={order.unitDescription}>
-                        {order.unitDescription || '—'}
-                    </p>
-                    {(order.assetTagDescription || order.assetTagSubDescription) && (
+                    ) : <span className="shrink-0 w-4" />}
+                    {showTeam ? (
                         <p
-                            className="text-[10px] text-slate-500 dark:text-slate-300 font-bold uppercase truncate"
-                            title={[order.assetTagDescription, order.assetTagSubDescription].filter(Boolean).join(' / ')}
-                        >
-                            {order.assetTagDescription || 'Setor'}
-                            {order.assetTagSubDescription && (
-                                <span> / {order.assetTagSubDescription}</span>
-                            )}
-                        </p>
-                    )}
-                    {order.requestedServices && (
-                        <p
-                            className={`text-[11px] text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-line break-words ${isOverlay ? 'line-clamp-2' : 'line-clamp-2 group-hover:line-clamp-none'}`}
-                        >
-                            {order.requestedServices}
-                        </p>
-                    )}
-                    {showTeam && (
-                        <p
-                            className={`flex items-center mt-1.5 pt-1.5 ${scheduled ? 'pr-5' : ''} border-t border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase truncate ${order.teamCode || order.teamLeaderName
+                            className={`min-w-0 flex-1 text-[10px] font-bold uppercase truncate ${order.teamCode || order.teamLeaderName
                                 ? 'text-slate-600 dark:text-slate-300'
                                 : 'text-slate-400 dark:text-slate-500 italic'}`}
                             title={order.teamCode || order.teamLeaderName
@@ -178,29 +175,29 @@ export const ScheduleOrderCardView: React.FC<ScheduleOrderCardViewProps> = ({
                                 <span className="truncate normal-case">Sem equipe</span>
                             )}
                         </p>
+                    ) : <span className="flex-1" />}
+                    {scheduled && (
+                        <span
+                            className="material-symbols-outlined shrink-0 text-[16px] text-slate-500 dark:text-slate-400"
+                            title={`Já programada na equipe ${scheduledTeamCode || ''} neste dia`}
+                            aria-label="Já programada numa equipe neste dia"
+                        >
+                            event_available
+                        </span>
+                    )}
+                    {onOpenActions && (
+                        <button
+                            type="button"
+                            onPointerDown={e => e.stopPropagation()}
+                            onClick={onOpenActions}
+                            className="shrink-0 -mr-1.5 p-0.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
+                            title="Mover para… / reordenar"
+                            aria-label={`Ações da OS ${order.orderMask}`}
+                        >
+                            <span className="material-symbols-outlined text-[18px]">more_vert</span>
+                        </button>
                     )}
                 </div>
-                {onOpenActions && (
-                    <button
-                        type="button"
-                        onPointerDown={e => e.stopPropagation()}
-                        onClick={onOpenActions}
-                        className="shrink-0 -mr-1 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        title="Mover para… / reordenar"
-                        aria-label={`Ações da OS ${order.orderMask}`}
-                    >
-                        <span className="material-symbols-outlined text-[18px]">more_vert</span>
-                    </button>
-                )}
-            </div>
-            {scheduled && (
-                <span
-                    className="material-symbols-outlined absolute bottom-2 right-2 text-[16px] text-slate-500 dark:text-slate-400"
-                    title={`Já programada na equipe ${scheduledTeamCode || ''} neste dia`}
-                    aria-label="Já programada numa equipe neste dia"
-                >
-                    event_available
-                </span>
             )}
         </div>
     );
