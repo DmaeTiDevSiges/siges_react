@@ -12,7 +12,7 @@ import { registerBackHandler, runBackHandlers } from '../utils/backButton';
  *   - 1a: `#/<tela>`; voltar/avançar do navegador funcionam; voltar para a tela
  *     que era a anterior desempilha a entrada; voltar para tela que exige uma
  *     seleção perdida (`canEnter`) cai em `homeScreen`.
- *   - 1b: telas com rota própria (app/screenRoutes.ts, ex.: `#/visita/12`)
+ *   - 1b: telas com rota própria (app/screenRoutes.ts, ex.: `#/visit/12`)
  *     levam os ids na URL. Ao voltar/avançar, recarregar ou abrir um link, a
  *     seleção é lida DA URL (`applySelection`) e `canEnter` não se aplica.
  * Botão voltar do Android (antes fechava o app em qualquer tela), em ordem:
