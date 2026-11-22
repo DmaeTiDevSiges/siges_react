@@ -13,8 +13,11 @@ import { registerBackHandler, runBackHandlers } from '../utils/backButton';
  *     que era a anterior desempilha a entrada; voltar para tela que exige uma
  *     seleção perdida (`canEnter`) cai em `homeScreen`.
  *   - 1b: telas com rota própria (app/screenRoutes.ts, ex.: `#/visit/12`)
- *     levam os ids na URL. Ao voltar/avançar, recarregar ou abrir um link, a
- *     seleção é lida DA URL (`applySelection`) e `canEnter` não se aplica.
+ *     levam os ids na entrada do histórico. Ao voltar/avançar ou recarregar, a
+ *     seleção é lida DA ENTRADA (`applySelection`) e `canEnter` não se aplica.
+ *     Fora do localhost os ids não aparecem na barra (`toUrl` → `#/visit`): vão
+ *     no `history.state`, e `fromLocation` os lê de lá. Por isso a identidade da
+ *     entrada é a chave `toPath` (sempre com ids), não a URL exibida.
  * Botão voltar do Android (antes fechava o app em qualquer tela), em ordem:
  *   1. tratadores "por cima" (utils/backButton: modal, painel, passo de fluxo);
  *   2. `logicalBack` — o mesmo voltar da seta do cabeçalho (handleBack do App);
@@ -27,9 +30,12 @@ import { registerBackHandler, runBackHandlers } from '../utils/backButton';
 type Selection = Record<string, string | null | undefined>;
 
 interface Routing<S extends string> {
+    /** Chave da entrada (sempre com ids): decide se é entrada nova. */
     toPath: (screen: S, selection: Selection) => string;
-    /** Só rotas com parâmetros; null = não é (ou não é rota migrada). */
-    fromPath: (pathname: string) => { screen: S; selection: Selection } | null;
+    /** O que vai na barra. Padrão: toPath. */
+    toUrl?: (screen: S, selection: Selection) => string;
+    /** Tela e ids da entrada atual (caminho e/ou history.state); null = não é rota com ids. */
+    fromLocation: (pathname: string, state: unknown) => { screen: S; selection: Selection } | null;
 }
 
 interface Options<S extends string> {
@@ -49,9 +55,9 @@ interface Options<S extends string> {
     routing?: Routing<S>;
 }
 
-interface EntryState { screen?: string }
+interface EntryState { screen?: string; selection?: Selection }
 
-const legacyRouting: Routing<string> = { toPath: screen => `/${screen}`, fromPath: () => null };
+const legacyRouting: Routing<string> = { toPath: screen => `/${screen}`, fromLocation: () => null };
 const EMPTY: Selection = {};
 
 /** Posição da entrada atual no histórico (o react-router grava `idx` no history.state). */
@@ -65,6 +71,8 @@ export const useScreenHistory = <S extends string>({
     const navigate = useNavigate();
     const navigationType = useNavigationType();
     const path = routing.toPath(screen, selection);
+    const urlOf = (r: Routing<S>, s: S, sel: Selection) => (r.toUrl ?? r.toPath)(s, sel);
+    const url = urlOf(routing, screen, selection);
 
     // Caminho que acabou de vir de um POP/adoção da URL: não vira nova entrada.
     const fromUrl = useRef<string | null>(null);
@@ -74,8 +82,8 @@ export const useScreenHistory = <S extends string>({
     // Caminhos por posição do histórico (só nesta sessão; após recarregar, vazio).
     const stack = useRef<string[]>([]);
 
-    const latest = useRef({ screen, path, setScreen, homeScreen, canEnter, logicalBack, applySelection, routing, navigate });
-    latest.current = { screen, path, setScreen, homeScreen, canEnter, logicalBack, applySelection, routing, navigate };
+    const latest = useRef({ screen, path, url, selection, setScreen, homeScreen, canEnter, logicalBack, applySelection, routing, navigate });
+    latest.current = { screen, path, url, selection, setScreen, homeScreen, canEnter, logicalBack, applySelection, routing, navigate };
 
     /** Leva o app para a tela/ids de uma rota vinda da URL. */
     const adopt = (target: { screen: S; selection: Selection }) => {
@@ -90,24 +98,27 @@ export const useScreenHistory = <S extends string>({
     useEffect(() => {
         if (!enabled) return;
         if (fromUrl.current === path) { fromUrl.current = null; return; }
-        const state: EntryState = { screen };
+        const state: EntryState = { screen, selection };
         if (!synced.current) {
             synced.current = true;
-            // Recarregou ou abriu um link com rota migrada: segue a URL, não a tela inicial.
-            const linked = routing.fromPath(location.pathname);
+            // Recarregou ou abriu um link com rota migrada: segue a entrada, não a tela inicial.
+            const linked = routing.fromLocation(location.pathname, location.state);
             if (linked && routing.toPath(linked.screen, linked.selection) !== path) {
                 stack.current = [];
                 stack.current[historyIdx()] = routing.toPath(linked.screen, linked.selection);
                 adopt(linked);
-                navigate(location.pathname, { replace: true, state: { screen: linked.screen } });
+                navigate(urlOf(routing, linked.screen, linked.selection), {
+                    replace: true, state: { screen: linked.screen, selection: linked.selection },
+                });
                 return;
             }
             stack.current = [];
             stack.current[historyIdx()] = path;
-            navigate(path, { replace: true, state });
+            navigate(url, { replace: true, state });
             return;
         }
-        if (location.pathname === path) return;
+        // Já está nesta entrada (compara a chave: no modo oculto a URL se repete entre ids).
+        if (stack.current[historyIdx()] === path) return;
         const idx = historyIdx();
         if (idx > 0 && stack.current[idx - 1] === path) {
             // Voltou para a entrada anterior: desempilha.
@@ -117,7 +128,7 @@ export const useScreenHistory = <S extends string>({
         }
         stack.current = stack.current.slice(0, idx + 1);
         stack.current[idx + 1] = path;
-        navigate(path, { state });
+        navigate(url, { state });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [path, enabled]);
 
@@ -126,9 +137,9 @@ export const useScreenHistory = <S extends string>({
         // 'default' = entrada inicial (ainda sem nossa marca); o efeito acima a sincroniza.
         if (!enabled || navigationType !== 'POP' || !synced.current || location.key === 'default') return;
         if (selfPop.current) { selfPop.current = false; return; }
-        const { screen: current, path: currentPath, setScreen: set, homeScreen: home, canEnter: allowed, navigate: go, routing: r } = latest.current;
+        const { screen: current, path: currentPath, url: currentUrl, selection: currentSel, setScreen: set, homeScreen: home, canEnter: allowed, navigate: go, routing: r } = latest.current;
 
-        const linked = r.fromPath(location.pathname);
+        const linked = r.fromLocation(location.pathname, location.state);
         if (linked) {
             // Rota com parâmetros: os ids vêm da própria entrada.
             stack.current[historyIdx()] = r.toPath(linked.screen, linked.selection);
@@ -139,14 +150,15 @@ export const useScreenHistory = <S extends string>({
         const target = (location.state as EntryState | null)?.screen as S | undefined;
         if (!target) {
             // Entrada que não é nossa (ex.: URL digitada): volta a refletir a tela atual.
-            go(currentPath, { replace: true, state: { screen: current } });
+            stack.current[historyIdx()] = currentPath;
+            go(currentUrl, { replace: true, state: { screen: current, selection: currentSel } });
             return;
         }
         if (target === current && r.toPath(target, EMPTY) === currentPath) return;
         if (allowed && !allowed(target)) {
             if (home !== current) { fromUrl.current = r.toPath(home, EMPTY); set(home); }
             stack.current[historyIdx()] = r.toPath(home, EMPTY);
-            go(r.toPath(home, EMPTY), { replace: true, state: { screen: home } });
+            go(urlOf(r, home, EMPTY), { replace: true, state: { screen: home } });
             return;
         }
         stack.current[historyIdx()] = r.toPath(target, EMPTY);

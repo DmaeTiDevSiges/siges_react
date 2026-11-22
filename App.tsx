@@ -19,7 +19,7 @@ import { dataService } from './services/dataService';
 import { getCachedCurrentUser } from './services/offline/offlineAuth';
 import { PendingOpsPanel } from './components/offline/PendingOpsPanel';
 import { hasHeaderBack } from './app/screenBack';
-import { fromPath, toPath, type Selection } from './app/screenRoutes';
+import { fromLocation, showIdsInUrl, toPath, toUrl, type Selection } from './app/screenRoutes';
 import { useRouteEntity } from './hooks/useRouteEntity';
 import { useScreenHistory } from './hooks/useScreenHistory';
 import { prefetchVisitOffline, runOfflineAutoSync, setOfflineAutoSyncActive, setOfflineAutoSyncUser } from './services/offline/offlineAutoSync';
@@ -117,6 +117,9 @@ type Screen = 'ss-dashboard' | 'dashboard' | 'orders-dashboard' | 'visits-dashbo
 import { ActionIcon } from './components/ui/ActionIcon';
 import { imgproxyService } from './services/media/imgproxyService';
 import { Loading } from './components/ui/Loading';
+
+// Ids na URL só no localhost do navegador (conferência); fora dele vão no history.state.
+const SHOW_IDS_IN_URL = showIdsInUrl();
 
 // Gate de permissão para as telas de SS (ss-dashboard / services-history).
 // Sem a permissão 'dashboard_services' a aba SS's não aparece, mas sem este gate
@@ -3451,8 +3454,9 @@ const AppContent: React.FC = () => {
     applySelection: applyRouteSelection,
     routing: {
       toPath: (screen, sel) => toPath(screen, sel),
-      fromPath: pathname => {
-        const route = fromPath(pathname);
+      toUrl: (screen, sel) => toUrl(screen, sel, SHOW_IDS_IN_URL),
+      fromLocation: (pathname, state) => {
+        const route = fromLocation(pathname, state, SHOW_IDS_IN_URL);
         return route ? { screen: route.screen as Screen, selection: route.selection } : null;
       },
     },
