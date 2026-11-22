@@ -6,7 +6,7 @@ import { Select } from '../../../components/ui/Select';
 import { SearchInput } from '../../../components/ui/SearchInput';
 import { Loading } from '../../../components/ui/Loading';
 import { Modal } from '../../../components/ui/Modal';
-import { Calendar } from '../../../components/ui/Calendar';
+import { DateRangePicker } from '../../../components/ui/DateRangePicker';
 import { toast } from 'sonner';
 
 interface AuditLogListProps {
@@ -37,14 +37,6 @@ const getCurrentMonthRange = () => {
     };
 };
 
-const getPreviousMonthRange = () => {
-    const now = new Date();
-    return {
-        start: toDateString(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
-        end: toDateString(new Date(now.getFullYear(), now.getMonth(), 0)),
-    };
-};
-
 const formatDateDisplay = (dateString?: string) => {
     if (!dateString) return '';
     const [year, month, day] = dateString.split('-');
@@ -61,7 +53,6 @@ export const AuditLogList: React.FC<AuditLogListProps> = () => {
     const [dateRange, setDateRange] = useState(getCurrentMonthRange);
     const [tempDateRange, setTempDateRange] = useState(dateRange);
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
-    const [activeDateInput, setActiveDateInput] = useState<'start' | 'end'>('start');
     const [page, setPage] = useState(0);
     const [detailLog, setDetailLog] = useState<AuditLogItem | null>(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -108,12 +99,9 @@ export const AuditLogList: React.FC<AuditLogListProps> = () => {
 
     const totalPages = Math.ceil(total / pageSize);
     const todayStr = toDateString(new Date());
-    const currentMonthRange = getCurrentMonthRange();
-    const previousMonthRange = getPreviousMonthRange();
 
     const handleDateModalOpen = () => {
         setTempDateRange(dateRange);
-        setActiveDateInput('start');
         setIsDateModalOpen(true);
     };
 
@@ -214,65 +202,7 @@ export const AuditLogList: React.FC<AuditLogListProps> = () => {
                 draggable
             >
                 <div className="flex flex-col gap-4 px-2 pb-2 -mt-4">
-                    <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 justify-start sm:justify-center items-center snap-x snap-mandatory px-2">
-                        {[
-                            { label: 'Mês Passado', icon: 'calendar_month', range: previousMonthRange },
-                            { label: 'Mês Atual', icon: 'calendar_today', range: currentMonthRange },
-                            { label: 'Hoje', icon: 'today', range: { start: todayStr, end: todayStr } },
-                        ].map(({ label, icon, range }) => {
-                            const isSelected = tempDateRange.start === range.start && tempDateRange.end === range.end;
-                            return (
-                                <button
-                                    key={label}
-                                    type="button"
-                                    onClick={() => {
-                                        setTempDateRange(range);
-                                        setActiveDateInput('start');
-                                    }}
-                                    className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all snap-center ${isSelected
-                                        ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm font-black'
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'
-                                        }`}
-                                >
-                                    <span className={`material-symbols-outlined text-sm ${isSelected ? 'text-primary' : ''}`}>{icon}</span>
-                                    <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">{label}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        {(['start', 'end'] as const).map((field) => (
-                            <button
-                                key={field}
-                                type="button"
-                                onClick={() => setActiveDateInput(field)}
-                                className={`flex flex-col gap-1.5 p-3 rounded-xl border-2 text-left transition-all ${activeDateInput === field
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'
-                                    }`}
-                            >
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${activeDateInput === field ? 'text-primary' : 'text-slate-400'}`}>
-                                    {field === 'start' ? 'Início' : 'Fim'}
-                                </span>
-                                <span className={`text-sm font-bold ${tempDateRange[field] ? 'text-slate-900 dark:text-white' : 'text-slate-400 italic'}`}>
-                                    {formatDateDisplay(tempDateRange[field]) || 'Selecionar'}
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 p-4 shadow-sm">
-                        <Calendar
-                            value={tempDateRange[activeDateInput]}
-                            onChange={(date) => {
-                                setTempDateRange(prev => ({ ...prev, [activeDateInput]: date }));
-                                if (activeDateInput === 'start') setActiveDateInput('end');
-                            }}
-                            rangeStart={tempDateRange.start}
-                            rangeEnd={tempDateRange.end}
-                        />
-                    </div>
+                    <DateRangePicker value={tempDateRange} onChange={setTempDateRange} />
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                         <button

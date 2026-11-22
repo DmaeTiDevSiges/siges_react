@@ -110,8 +110,8 @@ export const Calendar: React.FC<CalendarProps> = ({ value, onChange, rangeStart,
                 </button>
             </div>
 
-            {/* Grid */}
-            <div className="grid grid-cols-7 gap-1 text-center">
+            {/* Grid: a faixa do período é o fundo da própria célula (nada passa da coluna) */}
+            <div className="grid grid-cols-7 gap-x-0 gap-y-1 text-center">
                 {/* Weekdays */}
                 {weekDays.map((d, i) => (
                     <div key={i} className="text-[10px] font-bold text-slate-400 uppercase tracking-wide py-2">
@@ -127,32 +127,37 @@ export const Calendar: React.FC<CalendarProps> = ({ value, onChange, rangeStart,
                 {/* Days */}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                     const day = i + 1;
+                    const column = (firstDayOfMonth + i) % 7;
                     const selected = isSelected(day);
                     const inRange = isInRange(day);
                     const rangeS = isRangeStart(day);
                     const rangeE = isRangeEnd(day);
                     const today = isToday(day);
+                    const hasBand = inRange && !!rangeStart && !!rangeEnd && rangeStart !== rangeEnd;
+                    const bandLeft = rangeS || column === 0 || day === 1;
+                    const bandRight = rangeE || column === 6 || day === daysInMonth;
 
                     return (
-                        <button
+                        <div
                             key={day}
-                            onClick={() => handleDateClick(day)}
-                            className={`
-                                relative h-9 rounded-lg flex items-center justify-center text-xs font-bold transition-all
-                                ${selected || rangeS || rangeE
-                                    ? 'bg-primary text-white shadow-md shadow-primary/30 z-10'
-                                    : inRange
-                                        ? 'bg-primary/10 text-primary rounded-none' // Connected look? Rounded-none needs care with first/last
-                                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-                                }
-                                ${(rangeS && rangeEnd) ? 'rounded-r-none pr-3' : ''}
-                                ${(rangeE && rangeStart) ? 'rounded-l-none pl-3' : ''}
-                                ${inRange && !rangeS && !rangeE ? 'rounded-none w-[110%] -ml-[5%]' : ''} 
-                                ${today && !selected && !inRange ? 'ring-1 ring-primary/50 text-primary' : ''}
-                            `}
+                            className={`relative min-w-0 ${hasBand ? 'bg-primary/10' : ''} ${hasBand && bandLeft ? 'rounded-l-lg' : ''} ${hasBand && bandRight ? 'rounded-r-lg' : ''}`}
                         >
-                            <span className="relative z-20">{day}</span>
-                        </button>
+                            <button
+                                onClick={() => handleDateClick(day)}
+                                className={`
+                                    relative h-9 w-full rounded-lg flex items-center justify-center text-xs font-bold transition-all
+                                    ${selected || rangeS || rangeE
+                                        ? 'bg-primary text-white shadow-md shadow-primary/30 z-10'
+                                        : inRange
+                                            ? 'text-primary'
+                                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                                    }
+                                    ${today && !selected && !inRange ? 'ring-1 ring-primary/50 text-primary' : ''}
+                                `}
+                            >
+                                <span className="relative z-20">{day}</span>
+                            </button>
+                        </div>
                     );
                 })}
             </div>

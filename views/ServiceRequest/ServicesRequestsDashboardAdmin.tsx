@@ -31,7 +31,7 @@ import { FilterBarResponsive, FilterBarResponsiveHandle } from '../../components
 import { ChevronButton } from '../../components/ui/ChevronButton';
 import { Loading } from '../../components/ui/Loading';
 import { Modal } from '../../components/ui/Modal';
-import { Calendar } from '../../components/ui/Calendar';
+import { DateRangePicker } from '../../components/ui/DateRangePicker';
 import DashboardOrdersVisitsAdminListItem from '../../components/dashboards/ordersVisitsAdmin/DashboardOrdersVisitsAdminListItem';
 
 // Online: renderização preguiçosa dos cartões fora da tela (a página de período não usa).
@@ -180,28 +180,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }, []);
 
-    const lastMonthRange = useMemo(() => {
-        const d = new Date();
-        const firstDayOfPrevMonth = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-        const lastDayOfPrevMonth = new Date(d.getFullYear(), d.getMonth(), 0);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return {
-            start: `${firstDayOfPrevMonth.getFullYear()}-${pad(firstDayOfPrevMonth.getMonth() + 1)}-${pad(firstDayOfPrevMonth.getDate())}`,
-            end: `${lastDayOfPrevMonth.getFullYear()}-${pad(lastDayOfPrevMonth.getMonth() + 1)}-${pad(lastDayOfPrevMonth.getDate())}`
-        };
-    }, []);
-
-    const currentMonthRange = useMemo(() => {
-        const d = new Date();
-        const firstDayOfMonth = new Date(d.getFullYear(), d.getMonth(), 1);
-        const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return {
-            start: `${firstDayOfMonth.getFullYear()}-${pad(firstDayOfMonth.getMonth() + 1)}-${pad(firstDayOfMonth.getDate())}`,
-            end: `${lastDayOfMonth.getFullYear()}-${pad(lastDayOfMonth.getMonth() + 1)}-${pad(lastDayOfMonth.getDate())}`
-        };
-    }, []);
-
     const dateKeys = isPeriod
         ? { start: 'ss_period_dashboard_date_start', end: 'ss_period_dashboard_date_end' }
         : { start: 'ss_dashboard_date_start', end: 'ss_dashboard_date_end' };
@@ -243,7 +221,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     const [isDateModalOpen, setIsDateModalOpen] = useState(false);
     const [tempDateRange, setTempDateRange] = useState<{ start: string; end: string }>(dateRange);
-    const [activeDateInput, setActiveDateInput] = useState<'start' | 'end'>('start');
 
     const formatDateDisplay = (dateString?: string) => {
         if (!dateString) return '';
@@ -256,7 +233,6 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
 
     const handleDateModalOpen = () => {
         setTempDateRange(dateRange);
-        setActiveDateInput('start');
         setIsDateModalOpen(true);
     };
 
@@ -2135,81 +2111,7 @@ export const ServicesRequestsDashboardAdmin: React.FC<ServicesRequestsDashboardA
                 draggable
             >
                 <div className="flex flex-col gap-4 px-2 pb-2 -mt-4">
-                    <div className="flex w-full mb-1 relative">
-                        <div className="absolute left-0 top-0 bottom-0 w-3 bg-linear-to-r from-white dark:from-slate-900 to-transparent pointer-events-none z-10 sm:hidden" />
-                        <div className="absolute right-0 top-0 bottom-0 w-3 bg-linear-to-l from-white dark:from-slate-900 to-transparent pointer-events-none z-10 sm:hidden" />
-                        <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-2 pt-1 w-full justify-start sm:justify-center items-center snap-x snap-mandatory px-2">
-                            {(() => {
-                                const isLastMonth = tempDateRange.start === lastMonthRange.start && tempDateRange.end === lastMonthRange.end;
-                                const isCurrentMonth = tempDateRange.start === currentMonthRange.start && tempDateRange.end === currentMonthRange.end;
-                                const isToday = tempDateRange.start === todayStr && tempDateRange.end === todayStr;
-                                return (
-                                    <>
-                                        <button
-                                            onClick={() => { setTempDateRange(lastMonthRange); setActiveDateInput('start'); }}
-                                            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all group snap-center ${isLastMonth ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'}`}
-                                        >
-                                            <span className={`material-symbols-outlined text-sm group-hover:scale-110 transition-transform ${isLastMonth && 'text-primary'}`}>calendar_month</span>
-                                            <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">Mês Passado</span>
-                                        </button>
-                                        <button
-                                            onClick={() => { setTempDateRange(currentMonthRange); setActiveDateInput('start'); }}
-                                            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all group snap-center ${isCurrentMonth ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'}`}
-                                        >
-                                            <span className={`material-symbols-outlined text-sm group-hover:scale-110 transition-transform ${isCurrentMonth && 'text-primary'}`}>calendar_today</span>
-                                            <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">Mês Atual</span>
-                                        </button>
-                                        <button
-                                            onClick={() => { setTempDateRange({ start: todayStr, end: todayStr }); setActiveDateInput('start'); }}
-                                            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl transition-all group snap-center ${isToday ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm font-black' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 font-bold'}`}
-                                        >
-                                            <span className={`material-symbols-outlined text-sm group-hover:scale-110 transition-transform ${isToday && 'text-primary'}`}>today</span>
-                                            <span className="text-[10px] uppercase tracking-widest whitespace-nowrap">Hoje</span>
-                                        </button>
-                                    </>
-                                );
-                            })()}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div
-                            onClick={() => setActiveDateInput('start')}
-                            className={`flex flex-col gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${activeDateInput === 'start' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${activeDateInput === 'start' ? 'text-primary' : 'text-slate-400'}`}>Início</span>
-                                <span className="material-symbols-outlined text-sm text-slate-400">calendar_today</span>
-                            </div>
-                            <span className={`text-sm font-bold ${tempDateRange.start ? 'text-slate-900 dark:text-white' : 'text-slate-400 italic'}`}>
-                                {formatDateDisplay(tempDateRange.start) || 'Selecionar'}
-                            </span>
-                        </div>
-                        <div
-                            onClick={() => setActiveDateInput('end')}
-                            className={`flex flex-col gap-1.5 p-3 rounded-xl border-2 cursor-pointer transition-all ${activeDateInput === 'end' ? 'border-primary bg-primary/5' : 'border-slate-100 dark:border-slate-800 hover:border-slate-300'}`}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${activeDateInput === 'end' ? 'text-primary' : 'text-slate-400'}`}>Fim</span>
-                                <span className="material-symbols-outlined text-sm text-slate-400">event</span>
-                            </div>
-                            <span className={`text-sm font-bold ${tempDateRange.end ? 'text-slate-900 dark:text-white' : 'text-slate-400 italic'}`}>
-                                {formatDateDisplay(tempDateRange.end) || 'Selecionar'}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="bg-white dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-700/50 p-4 shadow-sm">
-                        <Calendar
-                            value={tempDateRange[activeDateInput]}
-                            onChange={(date) => {
-                                setTempDateRange(prev => ({ ...prev, [activeDateInput]: date }));
-                                if (activeDateInput === 'start') setActiveDateInput('end');
-                            }}
-                            rangeStart={tempDateRange.start}
-                            rangeEnd={tempDateRange.end}
-                        />
-                    </div>
+                    <DateRangePicker value={tempDateRange} onChange={setTempDateRange} />
 
                     <div className="flex gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
                         <button
