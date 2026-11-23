@@ -43,6 +43,11 @@ const mapLoan = (item: any): AssetLoan => ({
     signatureReturnName: item.signature_return_name,
     signatureReturnAt: item.signature_return_at,
     signatureReturnSignerName: item.signature_return_signer_name,
+    signatureRecipientPath: item.signature_recipient_path,
+    signatureRecipientName: item.signature_recipient_name,
+    signatureRecipientAt: item.signature_recipient_at,
+    signatureRecipientSignerName: item.signature_recipient_signer_name,
+    recipientIdentification: item.recipient_identification,
     // Inspector fields
     inspectorDeliveryUserId: item.inspector_delivery_user_id?.toString(),
     inspectorReturnUserId: item.inspector_return_user_id?.toString(),
@@ -489,7 +494,11 @@ export const assetLoansService = {
         return count || 0;
     },
 
-    async saveLoanSignature(loanId: string, type: 'delivery' | 'return', base64: string, signerName: string): Promise<void> {
+    /**
+     * `recipient` = quem recebe o ativo cedido (cedência); exige `recipientIdentification`
+     * (documento/matrícula, texto livre). `delivery`/`return` = vistoriador.
+     */
+    async saveLoanSignature(loanId: string, type: 'delivery' | 'return' | 'recipient', base64: string, signerName: string, recipientIdentification?: string): Promise<void> {
         const folderPath = `companies/1/assets_loans/${loanId}/signatures`;
         const fileName = `${type}_${Date.now()}.png`;
         const fullPath = `${folderPath}/${fileName}`;
@@ -506,6 +515,12 @@ export const assetLoansService = {
                 updateData.signature_delivery_name = fileName;
                 updateData.signature_delivery_at = getLocalTimestamp();
                 updateData.signature_delivery_signer_name = signerName;
+            } else if (type === 'recipient') {
+                updateData.signature_recipient_path = folderPath;
+                updateData.signature_recipient_name = fileName;
+                updateData.signature_recipient_at = getLocalTimestamp();
+                updateData.signature_recipient_signer_name = signerName;
+                updateData.recipient_identification = (recipientIdentification || '').trim() || null;
             } else {
                 updateData.signature_return_path = folderPath;
                 updateData.signature_return_name = fileName;
@@ -524,12 +539,18 @@ export const assetLoansService = {
         }
     },
 
-    async deleteLoanSignature(loanId: string, type: 'delivery' | 'return'): Promise<void> {
+    async deleteLoanSignature(loanId: string, type: 'delivery' | 'return' | 'recipient'): Promise<void> {
         const updateData: any = {};
         if (type === 'delivery') {
             updateData.signature_delivery_path = null;
             updateData.signature_delivery_name = null;
             updateData.signature_delivery_at = null;
+        } else if (type === 'recipient') {
+            updateData.signature_recipient_path = null;
+            updateData.signature_recipient_name = null;
+            updateData.signature_recipient_at = null;
+            updateData.signature_recipient_signer_name = null;
+            updateData.recipient_identification = null;
         } else {
             updateData.signature_return_path = null;
             updateData.signature_return_name = null;

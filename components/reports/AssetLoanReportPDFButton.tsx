@@ -65,18 +65,42 @@ const photoToSquareBase64 = (url: string): Promise<string | null> =>
 
 interface AssetLoanReportPDFButtonProps {
     loan: AssetLoan;
-    asset: Asset | null;
-    beforeItems: ChecklistItemState[];
-    afterItems: ChecklistItemState[];
+    /**
+     * `asset`, `beforeItems` e `afterItems` são opcionais: se faltar algum, o botão
+     * carrega sozinho ao clicar (uso nos cards da lista, que não têm o checklist em memória).
+     */
+    asset?: Asset | null;
+    beforeItems?: ChecklistItemState[];
+    afterItems?: ChecklistItemState[];
     className?: string;
+    /** Só o ícone (quadrado 32×32) — para cards e linhas compactas. */
+    iconOnly?: boolean;
 }
+
+/** Itens preenchidos de uma fase do registro (before/after = empréstimo; single = recebimento/cedência). */
+const loadPhaseItems = async (loanId: string, phase: 'before' | 'after' | 'single'): Promise<ChecklistItemState[]> => {
+    const checklists = await dataService.getAssetLoanChecklists(loanId, phase);
+    return Promise.all(checklists.map(async (checklist) => ({
+        checklistTypeId: checklist.checklistTypeId,
+        checklistDbId: parseInt(checklist.id),
+        customItemDescription: checklist.customItemDescription,
+        itemDescription: checklist.itemDescription,
+        status: checklist.status,
+        notes: checklist.notes || '',
+        images: await dataService.getAssetLoanChecklistImages(checklist.id),
+        pendingImageFiles: [],
+        isCustom: !checklist.checklistTypeId,
+        isDivergent: checklist.isDivergent,
+    })));
+};
 
 export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> = ({
     loan,
-    asset,
-    beforeItems,
-    afterItems,
+    asset: assetProp,
+    beforeItems: beforeItemsProp,
+    afterItems: afterItemsProp,
     className = '',
+    iconOnly = false,
 }) => {
     const [isGenerating, setIsGenerating] = useState(false);
 
@@ -91,10 +115,19 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
         try {
             await new Promise(resolve => setTimeout(resolve, 100));
 
+            // Sem dados em memória (card da lista): busca o ativo e o checklist agora.
+            const single = isSingleInspection(loan.recordType);
+            const [asset, beforeItems, afterItems] = await Promise.all([
+                assetProp !== undefined ? assetProp : dataService.getAssetById(loan.assetId),
+                beforeItemsProp ?? loadPhaseItems(loan.id, single ? 'single' : 'before'),
+                afterItemsProp ?? (single ? Promise.resolve([] as ChecklistItemState[]) : loadPhaseItems(loan.id, 'after')),
+            ]);
+
             const [logoBase64] = await Promise.all([getLogoBase64()]);
 
             let signatureDeliveryBase64: string | undefined;
             let signatureReturnBase64: string | undefined;
+            let signatureRecipientBase64: string | undefined;
 
             if (loan.signatureDeliveryPath && loan.signatureDeliveryName) {
                 const rawUrl = dataService.getSignatureUrl(loan.signatureDeliveryPath, loan.signatureDeliveryName);
@@ -107,6 +140,20 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
                         }
                     } catch (e) {
                         console.warn('Erro ao carregar assinatura de entrega:', e);
+                    }
+                }
+            }
+            if (loan.recordType === 'cedencia' && loan.signatureRecipientPath && loan.signatureRecipientName) {
+                const rawUrl = dataService.getSignatureUrl(loan.signatureRecipientPath, loan.signatureRecipientName);
+                if (rawUrl) {
+                    const url = imgproxyService.generateUrl(rawUrl, { width: 400, height: 200, resize: 'fit', format: 'png' });
+                    try {
+                        const b64 = await imgToBase64(url);
+                        if (b64) {
+                            signatureRecipientBase64 = await addWhiteBackgroundToImage(b64);
+                        }
+                    } catch (e) {
+                        console.warn('Erro ao carregar assinatura de quem recebe:', e);
                     }
                 }
             }
@@ -160,6 +207,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
                     logoBase64={logoBase64}
                     signatureDeliveryBase64={signatureDeliveryBase64}
                     signatureReturnBase64={signatureReturnBase64}
+                    signatureRecipientBase64={signatureRecipientBase64}
                 />
             ).toBlob();
 
@@ -178,6 +226,7 @@ export const AssetLoanReportPDFButton: React.FC<AssetLoanReportPDFButtonProps> =
             onClick={handleGeneratePDF}
             loading={isGenerating}
             title={`Baixar relatório (${getRecordTypeConfig(loan.recordType).label})`}
+            iconOnly={iconOnly}
             className={className}
         />
     );

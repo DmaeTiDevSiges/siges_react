@@ -6,6 +6,7 @@ import { AssetLoanChecklistForm, ChecklistItemState } from './AssetLoanChecklist
 import { Loading } from '../ui/Loading';
 import { Modal } from '../ui/Modal';
 import { SignaturePad } from '../ui/SignaturePad';
+import { Input } from '../ui/Input';
 import { formatDate, formatDateTime } from '../../utils/formatters';
 import { AssetLoanReportPDFButton } from '../reports/AssetLoanReportPDFButton';
 import { usePermissions } from '../../contexts/PermissionsContext';
@@ -18,7 +19,8 @@ import { toast } from 'sonner';
  * Fluxo: analysis → closed (sem devolução). Para concluir:
  *   - todos os itens preenchidos;
  *   - ao menos uma foto em cada item danificado;
- *   - assinatura do vistoriador (o usuário logado).
+ *   - assinatura do vistoriador (o usuário logado);
+ *   - só na CEDÊNCIA: assinatura + nome + identificação (texto livre) de quem recebe o ativo.
  * O banco revalida tudo em fn_assets_loans_conclude_inspection. Depois de concluído,
  * o registro não pode ser alterado nem cancelado.
  */
@@ -40,12 +42,23 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
     const [isSavingSignature, setIsSavingSignature] = useState(false);
     const [confirmDeleteSignature, setConfirmDeleteSignature] = useState(false);
     const [isConcluding, setIsConcluding] = useState(false);
+    // Cedência: quem recebe o ativo assina e se identifica.
+    const [recipientName, setRecipientName] = useState(initialLoan.signatureRecipientSignerName || initialLoan.borrowerName || '');
+    const [recipientIdentification, setRecipientIdentification] = useState(initialLoan.recipientIdentification || '');
+    const [isRecipientSigning, setIsRecipientSigning] = useState(false);
+    const [isSavingRecipient, setIsSavingRecipient] = useState(false);
+    const [confirmDeleteRecipient, setConfirmDeleteRecipient] = useState(false);
     const { canCreate } = usePermissions();
 
     const typeConfig = getRecordTypeConfig(loan.recordType);
     const isClosed = loan.status === 'closed';
     const canEdit = !isClosed && canCreate('assets_loans');
     const hasSignature = !!loan.signatureDeliveryPath && !!loan.signatureDeliveryName;
+    const isCedencia = loan.recordType === 'cedencia';
+    const hasRecipientSignature = !!loan.signatureRecipientPath && !!loan.signatureRecipientName;
+    const recipientIdentified = !!recipientName.trim() && !!recipientIdentification.trim();
+    // Cedência só conclui com a assinatura de quem recebe; os demais tipos não exigem.
+    const recipientReady = !isCedencia || hasRecipientSignature;
 
     const loadItems = useCallback(async () => {
         const checklists = await dataService.getAssetLoanChecklists(loan.id, 'single');
@@ -129,6 +142,36 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
         }
     };
 
+    const handleSaveRecipientSignature = async (base64: string) => {
+        if (!recipientIdentified) {
+            toast.error('Informe o nome e a identificação de quem recebe o ativo.');
+            return;
+        }
+        try {
+            setIsSavingRecipient(true);
+            await dataService.saveAssetLoanSignature(loan.id, 'recipient', base64, recipientName.trim(), recipientIdentification.trim());
+            await refreshLoan();
+            setIsRecipientSigning(false);
+            toast.success('Assinatura de quem recebe salva!');
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao salvar assinatura');
+        } finally {
+            setIsSavingRecipient(false);
+        }
+    };
+
+    const handleDeleteRecipientSignature = async () => {
+        try {
+            await dataService.deleteAssetLoanSignature(loan.id, 'recipient');
+            await refreshLoan();
+            toast.success('Assinatura removida');
+        } catch (error: any) {
+            toast.error(error?.message || 'Erro ao remover assinatura');
+        } finally {
+            setConfirmDeleteRecipient(false);
+        }
+    };
+
     const handleConclude = async () => {
         if (pendingCount > 0) {
             toast.error(`Preencha e salve todos os itens do checklist (${pendingCount} pendente(s)).`);
@@ -140,6 +183,10 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
         }
         if (!hasSignature) {
             toast.error('Assine a vistoria antes de concluir.');
+            return;
+        }
+        if (!recipientReady) {
+            toast.error('Colete a assinatura de quem recebe o ativo cedido antes de concluir.');
             return;
         }
         try {
@@ -163,6 +210,10 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
             </div>
         );
     }
+
+    const recipientSignatureUrl = hasRecipientSignature
+        ? dataService.getSignatureUrl(loan.signatureRecipientPath!, loan.signatureRecipientName!)
+        : null;
 
     const signatureUrl = hasSignature
         ? dataService.getSignatureUrl(loan.signatureDeliveryPath!, loan.signatureDeliveryName!)
@@ -289,11 +340,84 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
                 </div>
             )}
 
+            {/* Cedência: assinatura e identificação de quem recebe o ativo */}
+            {isCedencia && (canEdit || hasRecipientSignature) && (
+                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                            Assinatura de quem recebe o ativo
+                        </h4>
+                        {hasRecipientSignature && (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">
+                                Assinado
+                            </span>
+                        )}
+                    </div>
+
+                    {hasRecipientSignature ? (
+                        <div className="space-y-3">
+                            <div className="text-center">
+                                <p className="text-xs font-bold text-slate-900 dark:text-white">{loan.signatureRecipientSignerName}</p>
+                                {loan.recipientIdentification && (
+                                    <p className="text-[11px] text-slate-500 dark:text-slate-400">{loan.recipientIdentification}</p>
+                                )}
+                            </div>
+                            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+                                <img src={recipientSignatureUrl || ''} alt="Assinatura de quem recebe o ativo" className="max-h-24 mx-auto dark:invert" />
+                            </div>
+                            {loan.signatureRecipientAt && (
+                                <p className="text-[10px] text-slate-400 text-center">
+                                    Assinado em {formatDateTime(loan.signatureRecipientAt)}
+                                </p>
+                            )}
+                            {canEdit && (
+                                <button
+                                    onClick={() => setConfirmDeleteRecipient(true)}
+                                    className="w-full py-2 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                                >
+                                    Remover Assinatura
+                                </button>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <Input
+                                label="Nome de quem recebe"
+                                value={recipientName}
+                                onChange={(e) => setRecipientName(e.target.value)}
+                                placeholder="Nome completo"
+                                required
+                            />
+                            <Input
+                                label="Identificação (documento, matrícula ou cargo)"
+                                value={recipientIdentification}
+                                onChange={(e) => setRecipientIdentification(e.target.value)}
+                                placeholder="Ex.: CPF, matrícula, RG..."
+                                required
+                            />
+                            <button
+                                onClick={() => setIsRecipientSigning(true)}
+                                disabled={!checklistReady || !recipientIdentified}
+                                className="w-full py-3 text-xs font-bold text-primary bg-primary/10 rounded-xl hover:bg-primary/20 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <span className="material-symbols-outlined text-lg">draw</span>
+                                Coletar assinatura de quem recebe
+                            </button>
+                            {!checklistReady && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                    Salve o checklist completo antes de coletar a assinatura.
+                                </p>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {canEdit && (
                 <button
                     onClick={handleConclude}
-                    disabled={isConcluding || !checklistReady || !hasSignature}
-                    className={`w-full py-3 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${checklistReady && hasSignature ? 'shadow-lg shadow-green-500/30' : ''}`}
+                    disabled={isConcluding || !checklistReady || !hasSignature || !recipientReady}
+                    className={`w-full py-3 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${checklistReady && hasSignature && recipientReady ? 'shadow-lg shadow-green-500/30' : ''}`}
                 >
                     {isConcluding ? (
                         <Loading size="sm" />
@@ -330,6 +454,36 @@ export const AssetInspectionDetails: React.FC<AssetInspectionDetailsProps> = ({
                     )}
                 </div>
             </Modal>
+
+            <Modal
+                isOpen={isRecipientSigning}
+                onClose={() => setIsRecipientSigning(false)}
+                title="Assinatura - quem recebe o ativo"
+                maxWidth="md"
+            >
+                <div className="space-y-4">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Assinatura de <strong className="text-slate-900 dark:text-white">{recipientName.trim()}</strong>
+                        {recipientIdentification.trim() && <> ({recipientIdentification.trim()})</>}
+                    </p>
+                    <SignaturePad onSave={handleSaveRecipientSignature} title="Assine para confirmar o recebimento do ativo" />
+                    {isSavingRecipient && (
+                        <div className="flex justify-center py-4">
+                            <Loading size="sm" />
+                        </div>
+                    )}
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={confirmDeleteRecipient}
+                onClose={() => setConfirmDeleteRecipient(false)}
+                onConfirm={handleDeleteRecipientSignature}
+                title="Remover Assinatura"
+                message="Tem certeza que deseja remover a assinatura de quem recebe o ativo?"
+                confirmLabel="Remover"
+                type="warning"
+            />
 
             <Modal
                 isOpen={confirmDeleteSignature}

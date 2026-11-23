@@ -354,6 +354,8 @@ export interface AssetLoanReportDocumentProps {
     logoBase64?: string;
     signatureDeliveryBase64?: string;
     signatureReturnBase64?: string;
+    /** Cedência: assinatura de quem recebe o ativo. */
+    signatureRecipientBase64?: string;
     generatedAt?: string;
 }
 
@@ -365,6 +367,7 @@ export const AssetLoanReportDocument = ({
     logoBase64,
     signatureDeliveryBase64,
     signatureReturnBase64,
+    signatureRecipientBase64,
     generatedAt,
 }: AssetLoanReportDocumentProps) => {
     const now = new Date();
@@ -645,6 +648,23 @@ export const AssetLoanReportDocument = ({
                         )}
                         <Text style={styles.signatureDate}>{fmtDateTime(loan.signatureDeliveryAt)}</Text>
                     </View>
+                    {loan.recordType === 'cedencia' && (
+                    <View style={styles.signatureBlock}>
+                        {signatureRecipientBase64 ? (
+                            <Image src={signatureRecipientBase64} style={styles.signatureImage} />
+                        ) : (
+                            <View style={[styles.signatureImage, styles.signatureLine]} />
+                        )}
+                        <Text style={styles.signatureLabel}>Assinatura de quem recebe</Text>
+                        {loan.signatureRecipientSignerName && (
+                            <Text style={styles.signatureName}>{loan.signatureRecipientSignerName}</Text>
+                        )}
+                        {loan.recipientIdentification && (
+                            <Text style={styles.signatureDate}>{loan.recipientIdentification}</Text>
+                        )}
+                        <Text style={styles.signatureDate}>{fmtDateTime(loan.signatureRecipientAt)}</Text>
+                    </View>
+                    )}
                     {!single && (
                     <View style={styles.signatureBlock}>
                         {signatureReturnBase64 ? (

@@ -2223,6 +2223,12 @@ export interface AssetLoan {
   signatureReturnName?: string;
   signatureReturnAt?: string;
   signatureReturnSignerName?: string;
+  /** Cedência: quem recebe o ativo assina e se identifica (texto livre). */
+  signatureRecipientPath?: string;
+  signatureRecipientName?: string;
+  signatureRecipientAt?: string;
+  signatureRecipientSignerName?: string;
+  recipientIdentification?: string;
 
   // Inspector fields
   inspectorDeliveryUserId?: string;
