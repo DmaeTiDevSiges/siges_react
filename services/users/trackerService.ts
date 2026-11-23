@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { supabase } from '../core/supabase';
+import { logClientEvent } from '../core/clientDiagnosticsService';
+import { networkSnapshot } from '../core/networkSnapshot';
 
 // Tokens de rastreamento por aparelho (migration 20261106_create_users_tracker_tokens.sql).
 // O serviço nativo envia a posição com esse token para fn_tracker_report_location,
@@ -32,8 +34,10 @@ export const trackerService = {
         // tenta mais 2 vezes antes de o rastreamento cair para o GPS da WebView.
         let data: unknown = null;
         let lastError: Error | null = null;
+        const attempts: { ms: number; err: string }[] = [];
         for (let attempt = 0; attempt < 3; attempt++) {
             if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+            const startedAt = Date.now();
             try {
                 const res = await supabase.rpc('fn_tracker_issue_token', {
                     p_device_id: deviceId,
@@ -45,9 +49,17 @@ export const trackerService = {
                 break;
             } catch (err) {
                 lastError = err instanceof Error ? err : new Error(String(err));
+                attempts.push({ ms: Date.now() - startedAt, err: lastError.message.slice(0, 80) });
             }
         }
-        if (lastError) throw lastError;
+        if (lastError) {
+            // Registra o retrato da rede e as tentativas: separa falha do aparelho
+            // (online=false, sinal fraco) de falha do servidor (online=true em vários aparelhos).
+            logClientEvent('error', `Rastreamento: token falhou após ${attempts.length} tentativas — ${lastError.message}`, {
+                extra: { stage: 'token_attempts', attempts, ...networkSnapshot() },
+            });
+            throw lastError;
+        }
         if (typeof data !== 'string' || data.length !== 64) {
             throw new Error('Token de rastreamento inválido');
         }

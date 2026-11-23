@@ -6,6 +6,7 @@ import { LocationService } from '../services/core/locationServicePlugin';
 import { dataService } from '../services/dataService';
 import { haversineDistance } from '../utils/geo';
 import { logClientEvent } from '../services/core/clientDiagnosticsService';
+import { networkSnapshot } from '../services/core/networkSnapshot';
 
 /** Lembrete de otimização de bateria: no máximo 1x por dia. */
 const BATTERY_REMINDER_KEY = 'siges_tracker_battery_reminder_at';
@@ -251,7 +252,7 @@ export function useLocationTracker(
             console.error(`[LocationTracker] ${stage} failed, falling back to WebView GPS:`, err);
             logClientEvent('error', `Rastreamento: falha em ${stage} — ${message}`, {
                 stack: err instanceof Error ? err.stack : undefined,
-                extra: { stage, fallback: 'web_watcher' },
+                extra: { stage, fallback: 'web_watcher', retryInMs: nativeRetryDelayMs, ...networkSnapshot() },
             });
             if (cancelled) return;
             nativeFallback = true;
