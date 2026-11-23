@@ -156,6 +156,8 @@ export const OFFLINE_FILE_OPS: Record<string, OfflineOpSpec> = {
 
     // saveOrderVisitSignature(ovId, type, base64, onProgress?, options?)
     saveOrderVisitSignature: {
+        // Visita iniciada offline ("tmp:…"): o envio troca pelo id real.
+        visitId: a => str(a[0]),
         entityKey: a => `visit:${str(a[0])}:signature:${str(a[1])}`,
         skipLocalOnOnline: true,
         prepareArgs: async a => {
@@ -178,6 +180,7 @@ export const OFFLINE_FILE_OPS: Record<string, OfflineOpSpec> = {
 
     // deleteOrderVisitSignature(visitId, type)
     deleteOrderVisitSignature: {
+        visitId: a => str(a[0]),
         entityKey: a => `visit:${str(a[0])}:signature:${str(a[1])}`,
         // Anula a assinatura que nem subiu; a remoção ainda vai (pode haver uma anterior no servidor).
         cancelsPending: (a, p) =>
