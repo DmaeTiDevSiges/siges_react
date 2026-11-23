@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Asset, AssetAttribute, AssetHistoryItem, TechnicalManual, TechnicalManualFile, Material, AssetMaterial, AssetLoan } from '../../types';
 import { dataService } from '../../services/dataService';
 import { getPublicImageUrl } from '../../services/media/imageUtils';
@@ -18,6 +18,11 @@ import { Modal } from '../../components/ui/Modal';
 import { ConfirmDeleteModal } from '../../components/ui/ConfirmDeleteModal';
 import { AssetDetailsPDFButton } from '../../components/reports/AssetDetailsPDFButton';
 import { AssetHistoryPDFButton } from '../../components/reports/AssetHistoryPDFButton';
+import { AssetTabPDFButton } from '../../components/reports/AssetTabPDFButton';
+import { AssetQrLabelPDFButton } from '../../components/reports/AssetQrLabelPDFButton';
+import {
+    buildAlertsSections, buildLoansSections, buildManualsSections, buildComponentsSections, formatAttributeDisplayValue,
+} from '../../utils/assetTabPdfSections';
 import { AssetAlertListItem } from './AssetAlertListItem';
 import { AssetLoanCard } from '../../components/assetLoans/AssetLoanCard';
 import { AssetLoanForm } from '../../components/assetLoans/AssetLoanForm';
@@ -491,6 +496,19 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
         }
     };
 
+    // Ficha técnica em PDF: mesmos valores da tela (rótulo do select, R$, data). Boolean fica
+    // cru ('true'/'false'), que é o que o documento espera.
+    const pdfAttributeValues = useMemo(() => {
+        const out: Record<string, string> = {};
+        attributes.forEach(attr => {
+            const raw = attributeValues[attr.fieldKey];
+            out[attr.fieldKey] = attr.dataType === 'boolean'
+                ? (raw ?? '')
+                : (raw ? formatAttributeDisplayValue(attr, raw, attributeGroupOptions) : '');
+        });
+        return out;
+    }, [attributes, attributeValues, attributeGroupOptions]);
+
     const filteredAlerts = alerts.filter(alert => {
         if (alertFilter === 'abertos') return !alert.isDone;
         if (alertFilter === 'resolvidos') return alert.isDone;
@@ -599,6 +617,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                 <section>
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Dados Técnicos</h3>
+                                        <AssetDetailsPDFButton asset={asset} attributes={attributes} attributeValues={pdfAttributeValues} />
                                     </div>
 
                                     <div
@@ -663,6 +682,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                             <section className="animate-in fade-in zoom-in-95 duration-500">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Etiquetas de Identificação</h3>
+                                    <AssetQrLabelPDFButton asset={asset} />
                                 </div>
 
                                 <div className="flex flex-col items-center w-full">
@@ -727,6 +747,14 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <>
                                         <div className="flex items-center justify-between mb-6">
                                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Alertas</h3>
+                                            <AssetTabPDFButton
+                                                asset={asset}
+                                                title="Alertas"
+                                                subtitle={`Filtro: ${alertFilter === 'abertos' ? 'abertos' : alertFilter === 'resolvidos' ? 'resolvidos' : 'todos'}`}
+                                                fileNamePrefix="Alertas"
+                                                count={filteredAlerts.length}
+                                                getSections={() => buildAlertsSections(filteredAlerts)}
+                                            />
                                             {(currentUserIsAdminSuper || canCreate('assets_alerts')) && (
                                                 <button
                                                     className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-500 rounded-full transition-all active:scale-95 border-none cursor-pointer"
@@ -813,6 +841,14 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">
                                         Empréstimos e Vistorias deste Ativo
                                     </h3>
+                                    <AssetTabPDFButton
+                                        asset={asset}
+                                        title="Empréstimos e Vistorias"
+                                        fileNamePrefix="Emprestimos"
+                                        count={assetLoans.length}
+                                        orientation="landscape"
+                                        getSections={() => buildLoansSections(assetLoans)}
+                                    />
                                     {canCreate('assets_loans') && !assetLoans.some(loan => loan.status !== 'closed') && (
                                     <button
                                         onClick={() => setShowLoanForm(true)}
@@ -1089,6 +1125,7 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
                         {/* Documentation Section */}
                         {activeTab === 'Atividades' && (
                             <AssetActivitiesTab
+                                asset={asset}
                                 assetId={asset.id}
                                 onError={(message) => toast.error(message)}
                             />
@@ -1096,7 +1133,16 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                         {activeTab === 'Manuais' && (
                             <section>
-                                <h3 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">Manuais Técnicos</h3>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Manuais Técnicos</h3>
+                                    <AssetTabPDFButton
+                                        asset={asset}
+                                        title="Manuais Técnicos"
+                                        fileNamePrefix="Manuais"
+                                        count={techManuals.length}
+                                        getSections={() => buildManualsSections(techManuals)}
+                                    />
+                                </div>
                                 {isLoadingDocs ? (
                                     <div className="flex justify-center py-8">
                                         <Loading size="sm" text="Carregando documentos..." />
@@ -1393,6 +1439,14 @@ const AssetDetailsContent: React.FC<AssetDetailsProps> = ({ asset, onBack, onEdi
 
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Componentes Associados</h3>
+                                    <AssetTabPDFButton
+                                        asset={asset}
+                                        title="Componentes Associados"
+                                        fileNamePrefix="Componentes"
+                                        count={components.length}
+                                        orientation="landscape"
+                                        getSections={() => buildComponentsSections(components)}
+                                    />
                                     {canCreate('assets_materials_create_edit_delete') && (
                                         <button
                                             className="flex items-center gap-2 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-full transition-all active:scale-95 border-none cursor-pointer"

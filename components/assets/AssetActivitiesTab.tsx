@@ -7,9 +7,12 @@ import {
     getAvailableYears,
     getBrazilCurrentYear,
 } from '../../utils/assetActivityMatrix';
-import type { AssetActivityEntry } from '../../types';
+import type { Asset, AssetActivityEntry } from '../../types';
+import { AssetTabPDFButton } from '../reports/AssetTabPDFButton';
+import { buildActivitiesSections } from '../../utils/assetTabPdfSections';
 
 interface AssetActivitiesTabProps {
+    asset: Asset;
     assetId: string;
     onError?: (message: string) => void;
 }
@@ -22,7 +25,7 @@ interface AssetActivitiesTabProps {
  * Posição conforme registrados em `v_orders_visits_assets`
  * (before_unit_description, before_tag_description, before_tag_sub_description).
  */
-export const AssetActivitiesTab: React.FC<AssetActivitiesTabProps> = ({ assetId, onError }) => {
+export const AssetActivitiesTab: React.FC<AssetActivitiesTabProps> = ({ asset, assetId, onError }) => {
     const [entries, setEntries] = useState<AssetActivityEntry[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedYear, setSelectedYear] = useState<number>(() => getBrazilCurrentYear());
@@ -82,6 +85,16 @@ export const AssetActivitiesTab: React.FC<AssetActivitiesTabProps> = ({ assetId,
                     </span>
                 </div>
 
+                <div className="flex items-center gap-2">
+                <AssetTabPDFButton
+                    asset={asset}
+                    title="Atividades por mês"
+                    subtitle={`Visitas aprovadas · ${selectedYear}`}
+                    fileNamePrefix={`Atividades_${selectedYear}`}
+                    orientation="landscape"
+                    count={matrix.rows.length}
+                    getSections={() => buildActivitiesSections(entries, selectedYear)}
+                />
                 {availableYears.length > 0 && (
                     <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                         {availableYears.map((year) => (
@@ -99,6 +112,7 @@ export const AssetActivitiesTab: React.FC<AssetActivitiesTabProps> = ({ assetId,
                         ))}
                     </div>
                 )}
+                </div>
             </div>
 
             {matrix.rows.length === 0 ? (
