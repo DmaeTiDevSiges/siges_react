@@ -76,7 +76,7 @@ export const AssetLoanCard: React.FC<AssetLoanCardProps> = ({ loan, onViewDetail
 
                 <div className="flex flex-col items-end gap-2">
                     {/* Carrega ativo e checklist ao clicar; stopPropagation no próprio botão evita abrir os detalhes. */}
-                    <AssetLoanReportPDFButton loan={loan} iconOnly />
+                    <AssetLoanReportPDFButton loan={loan} />
                     <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-xl">
                         chevron_right
                     </span>
