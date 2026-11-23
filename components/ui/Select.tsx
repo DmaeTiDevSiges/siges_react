@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { getVisibleBottom, watchKeyboard } from '../../utils/visibleViewport';
 
 interface Option {
     value: string;
@@ -109,13 +110,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 }
             };
 
+            let stopKeyboardRef: (() => void) | null = null;
+
             const updatePosition = () => {
                 if (containerRef.current && isOpen) {
                     const rect = containerRef.current.getBoundingClientRect();
-                    const viewHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                    // Fundo visível descontando o teclado (senão a lista termina atrás dele).
+                    const visibleBottom = getVisibleBottom();
                     const viewTop = window.visualViewport ? window.visualViewport.offsetTop : 0;
                     
-                    const spaceBelow = viewHeight - rect.bottom;
+                    const spaceBelow = visibleBottom - rect.bottom;
                     const spaceAbove = rect.top - viewTop;
                     
                     let placement = 'bottom';
@@ -156,6 +160,10 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     window.visualViewport.addEventListener('scroll', updatePosition);
                 }
                 window.addEventListener('scroll', handleScroll, true);
+                const stopKeyboard = watchKeyboard(updatePosition);
+                // O teclado abre depois (foco automático na busca): mede de novo enquanto ele sobe.
+                const remeasure = [150, 400, 800].map(ms => setTimeout(updatePosition, ms));
+                stopKeyboardRef = () => { stopKeyboard(); remeasure.forEach(clearTimeout); };
                 
                 setTimeout(() => {
                     if (containerRef.current) {
@@ -174,6 +182,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                     window.visualViewport.removeEventListener('scroll', updatePosition);
                 }
                 window.removeEventListener('scroll', handleScroll, true);
+                stopKeyboardRef?.();
             };
         }, [isOpen]);
 
