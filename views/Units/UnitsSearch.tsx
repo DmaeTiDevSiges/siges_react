@@ -10,6 +10,8 @@ import { UnitsListPDFButton } from '../../components/reports/UnitsListPDFButton'
 import { FilterSelect } from '../../components/ui/FilterSelect';
 import { Modal } from '../../components/ui/Modal';
 import { haversineDistance, formatDistance } from '../../utils/geo';
+import { toast } from 'sonner';
+import { getCurrentPosition } from '../../services/core/currentPositionService';
 
 interface SelectedFilters {
     systemParentId?: string | string[];
@@ -139,7 +141,6 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
                     dataService.getUnitTypesParent(),
                     dataService.getUnitsStatuses()
                 ]);
-                if (!active) return;
 
                 const systems = systemsParent || [];
                 setFilterOptions(prev => ({
@@ -191,21 +192,16 @@ export const UnitsSearch: React.FC<UnitsSearchProps> = ({ currentUser, onSelectU
 
         // Fallback: request GPS location
         setLocationLoading(true);
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                setUserLocation({
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
-                setLocationLoading(false);
-            },
-            (error) => {
+        getCurrentPosition({ enableHighAccuracy: false, timeout: 30_000, maximumAge: 60_000 })
+            .then(pos => {
+                setUserLocation({ lat: pos.latitude, lng: pos.longitude });
+            })
+            .catch(error => {
+                // Não desliga "próximas": a pessoa ainda vê todas as unidades, sem distância.
                 console.warn('Geolocation error:', error.message);
-                setLocationLoading(false);
-                // Don't disable nearby — user can still see all units without distance
-            },
-            { enableHighAccuracy: false, timeout: 30000, maximumAge: 60000 }
-        );
+                toast.warning(error.message);
+            })
+            .finally(() => setLocationLoading(false));
     }, [nearbyEnabled, userLocation, currentUser.latitude, currentUser.longitude]);
 
     const handleSystemParentChange = useCallback(async (systemParentId: string | string[]) => {

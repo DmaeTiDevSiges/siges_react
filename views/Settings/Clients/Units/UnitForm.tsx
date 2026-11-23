@@ -15,6 +15,7 @@ import { usePermissions } from '../../../../contexts/PermissionsContext';
 import { useUnitEditScope } from '../../../../hooks/useUnitEditScope';
 import { ImageUploadSheet } from '../../../../components/ui/ImageUploadSheet';
 import { ImageEditorModal } from '../../../../components/ui/ImageEditorModal';
+import { getCurrentPosition, CurrentPositionError, CURRENT_POSITION_MESSAGES } from '../../../../services/core/currentPositionService';
 
 // Fix for default Leaflet marker icons in Vite/Capacitor
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -298,32 +299,24 @@ export const UnitForm: React.FC<UnitFormProps> = ({
         }
     };
 
-    const getCurrentLocation = () => {
-        if (!navigator.geolocation) {
-            toast.error('Geolocalização não é suportada pelo seu navegador.');
-            return;
-        }
+    const getCurrentLocation = async () => {
+        try {
+            const { latitude, longitude } = await getCurrentPosition({ enableHighAccuracy: true, timeout: 20_000 });
+            const newPos: L.LatLngExpression = [latitude, longitude];
 
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                const { latitude, longitude } = position.coords;
-                const newPos: L.LatLngExpression = [latitude, longitude];
-
-                if (mapRef.current && markerRef.current) {
-                    mapRef.current.setView(newPos, 16);
-                    markerRef.current.setLatLng(newPos);
-                    setForm(prev => ({
-                        ...prev,
-                        latitude: latitude,
-                        longitude: longitude
-                    }));
-                }
-            },
-            (error) => {
-                console.error('Error getting location:', error);
-                toast.error('Não foi possível obter sua localização. Verifique as permissões do navegador.');
+            if (mapRef.current && markerRef.current) {
+                mapRef.current.setView(newPos, 16);
+                markerRef.current.setLatLng(newPos);
+                setForm(prev => ({
+                    ...prev,
+                    latitude: latitude,
+                    longitude: longitude
+                }));
             }
-        );
+        } catch (error) {
+            console.error('Error getting location:', error);
+            toast.error(error instanceof CurrentPositionError ? error.message : CURRENT_POSITION_MESSAGES.unavailable);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

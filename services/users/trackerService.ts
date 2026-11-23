@@ -28,11 +28,26 @@ export const trackerService = {
     async issueTrackerToken(): Promise<string> {
         const deviceId = await this.getTrackerDeviceId();
         const deviceInfo = `${Capacitor.getPlatform()} · ${navigator.userAgent}`.slice(0, 300);
-        const { data, error } = await supabase.rpc('fn_tracker_issue_token', {
-            p_device_id: deviceId,
-            p_device_info: deviceInfo,
-        });
-        if (error) throw new Error(error.message);
+        // "Failed to fetch" = falha de rede passageira (sinal fraco, WebView acordando):
+        // tenta mais 2 vezes antes de o rastreamento cair para o GPS da WebView.
+        let data: unknown = null;
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise(r => setTimeout(r, 1500 * attempt));
+            try {
+                const res = await supabase.rpc('fn_tracker_issue_token', {
+                    p_device_id: deviceId,
+                    p_device_info: deviceInfo,
+                });
+                if (res.error) throw new Error(res.error.message);
+                data = res.data;
+                lastError = null;
+                break;
+            } catch (err) {
+                lastError = err instanceof Error ? err : new Error(String(err));
+            }
+        }
+        if (lastError) throw lastError;
         if (typeof data !== 'string' || data.length !== 64) {
             throw new Error('Token de rastreamento inválido');
         }

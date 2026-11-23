@@ -53,6 +53,9 @@ const remindBatteryOptimization = async () => {
 const HEARTBEAT_MIN_SECONDS = 30;
 /** How often we re-check that the watcher is alive (and re-create it if not), in ms. */
 const WATCHDOG_INTERVAL_MS = 60_000;
+/** Backoff para voltar do GPS da WebView ao serviço nativo após falha. */
+const NATIVE_RETRY_MIN_MS = 60_000;
+const NATIVE_RETRY_MAX_MS = 10 * 60_000;
 /** Distance filter in meters — triggers a location write if user moves this much. */
 const DISTANCE_FILTER_M = 50;
 
@@ -139,6 +142,14 @@ export function useLocationTracker(
         const intervalSeconds = Math.max(trackerIntervalSeconds, HEARTBEAT_MIN_SECONDS);
 
         let cancelled = false;
+        // Evita start() simultâneos (efeito, watchdog e visibilitychange) criarem
+        // dois watchers antes de watcherIdRef/webWatchIdRef serem preenchidos.
+        let starting = false;
+        // Fallback para o GPS da WebView (token/serviço nativo falharam): o serviço
+        // nativo é retentado com backoff, senão o rastreamento fica só com o app aberto.
+        let nativeFallback = false;
+        let nativeRetryDelayMs = NATIVE_RETRY_MIN_MS;
+        let nativeNextRetryAt = 0;
 
         const stopAll = async () => {
             if (watcherIdRef.current === 'native') {
@@ -167,9 +178,19 @@ export function useLocationTracker(
             accuracy: number | null,
             triggerReason: 'time' | 'distance' | 'heartbeat' = 'time'
         ) => {
-            await dataService.updateUserLocation(userId, latitude, longitude, accuracy);
-            lastWriteAtRef.current = Date.now();
-            lastPosRef.current = { lat: latitude, lng: longitude };
+            try {
+                await dataService.updateUserLocation(userId, latitude, longitude, accuracy);
+                lastWriteAtRef.current = Date.now();
+                lastPosRef.current = { lat: latitude, lng: longitude };
+            } catch (err) {
+                // Sem rede/RLS: não deixa a promise rejeitar sem tratamento. A próxima
+                // leitura tenta de novo (lastWriteAtRef não avançou).
+                const message = err instanceof Error ? err.message : String(err);
+                console.warn('[LocationTracker] Falha ao gravar posição:', message);
+                logClientEvent('error', `Rastreamento: falha ao gravar posição — ${message}`, {
+                    extra: { stage: 'persist_location', triggerReason },
+                });
+            }
         };
 
         const shouldWrite = (newLat: number, newLng: number): { write: boolean; reason: 'time' | 'distance' | null } => {
@@ -233,8 +254,34 @@ export function useLocationTracker(
                 extra: { stage, fallback: 'web_watcher' },
             });
             if (cancelled) return;
+            nativeFallback = true;
+            nativeNextRetryAt = Date.now() + nativeRetryDelayMs;
+            nativeRetryDelayMs = Math.min(nativeRetryDelayMs * 2, NATIVE_RETRY_MAX_MS);
             setBlockReason(null);
             if (webWatchIdRef.current === null) startWebWatcher();
+        };
+
+        /** Tenta voltar do GPS da WebView para o serviço nativo (só com o app visível). */
+        const retryNative = async (force = false) => {
+            if (cancelled || starting || !nativeFallback) return;
+            if (document.visibilityState !== 'visible') return;
+            if (!force && Date.now() < nativeNextRetryAt) return;
+            starting = true;
+            try {
+                // Para o watcher web antes: se o nativo falhar de novo, o fallback recria.
+                if (webWatchIdRef.current !== null) {
+                    navigator.geolocation.clearWatch(webWatchIdRef.current);
+                    webWatchIdRef.current = null;
+                }
+                if (heartbeatTimerRef.current !== null) {
+                    window.clearInterval(heartbeatTimerRef.current);
+                    heartbeatTimerRef.current = null;
+                }
+                nativeFallback = false;
+                await startNativeWatcher();
+            } finally {
+                starting = false;
+            }
         };
 
         const startNativeWatcher = async () => {
@@ -278,6 +325,8 @@ export function useLocationTracker(
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
+                nativeFallback = false;
+                nativeRetryDelayMs = NATIVE_RETRY_MIN_MS;
                 void remindBatteryOptimization();
                 // O heartbeat no lado JS é desabilitado no modo nativo —
                 // o Java envia heartbeat via HTTP diretamente quando o tempo esgota.
@@ -307,7 +356,18 @@ export function useLocationTracker(
                     );
                 },
                 (err) => {
-                    console.warn('[LocationTracker] Web geolocation error (non-blocking):', err.message);
+                    if (cancelled) return;
+                    console.warn('[LocationTracker] Web geolocation error:', err.code, err.message);
+                    if (err.code === err.PERMISSION_DENIED) {
+                        // O usuário consegue resolver: mostra a tela de bloqueio.
+                        setBlockReason('permission_denied');
+                        return;
+                    }
+                    // POSITION_UNAVAILABLE / TIMEOUT são transitórios: o watch segue
+                    // tentando; só registra a causa para diagnóstico.
+                    logClientEvent('error', `Rastreamento web: ${err.message}`, {
+                        extra: { stage: 'web_watch', code: err.code },
+                    });
                 },
                 {
                     enableHighAccuracy: true,
@@ -342,6 +402,16 @@ export function useLocationTracker(
         };
 
         const start = async () => {
+            if (cancelled || starting) return;
+            starting = true;
+            try {
+                await startInner();
+            } finally {
+                starting = false;
+            }
+        };
+
+        const startInner = async () => {
             if (cancelled) return;
             if (watcherIdRef.current || webWatchIdRef.current !== null) {
                 await checkBackgroundPermission();
@@ -369,6 +439,9 @@ export function useLocationTracker(
             if (cancelled) return;
 
             if (Capacitor.isNativePlatform()) {
+                // Android 12+ recusa startForegroundService com o app em segundo plano
+                // ("mAllowStartForeground false"). Adia: o visibilitychange chama start().
+                if (document.visibilityState !== 'visible') return;
                 await startNativeWatcher();
             } else {
                 startWebWatcher();
@@ -385,7 +458,7 @@ export function useLocationTracker(
             }
         };
 
-        start();
+        void start();
         watchdogRef.current = window.setInterval(watchdog, WATCHDOG_INTERVAL_MS);
 
         // Re-check permissions / re-arm watcher when the app comes back to foreground.
@@ -394,7 +467,8 @@ export function useLocationTracker(
         // force a re-check on visibility change for snappier recovery.
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                start();
+                if (nativeFallback) void retryNative();
+                else void start();
             }
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
