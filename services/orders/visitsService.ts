@@ -11,6 +11,7 @@ import { vehicleRentalService } from './vehicleRentalService';
 
 let processingConfigurationsCache: any[] | null = null;
 import { toCompetenceClosingInstant, toCompetenceMonthStart } from '../../utils/vehicleRentalAllocation';
+import { planOrderAfterVisitDeletion, ORDER_STATUS_AUTHORIZED } from '../../utils/orderVisitRollback';
 export { competenceLabel, previousCompetenceMonth, toCompetenceClosingInstant, toCompetenceMonthStart } from '../../utils/vehicleRentalAllocation';
 const getProcessingConfigurations = async () => {
     if (processingConfigurationsCache) return processingConfigurationsCache;
@@ -5015,7 +5016,7 @@ export const visitsService = {
 
         const { data: visit, error: visitError } = await supabase
             .from('orders_visits')
-            .select('id, ov_status_id, ov_ended_at, is_deleted, ov_is_filed, ov_approved_at, ov_approved_filed_at, ov_costs_status')
+            .select('id, o_id, ov_status_id, ov_ended_at, is_deleted, ov_is_filed, ov_approved_at, ov_approved_filed_at, ov_costs_status')
             .eq('id', ovId)
             .maybeSingle();
 
@@ -5100,6 +5101,15 @@ export const visitsService = {
             }
         }
 
+        // A OS não pode manter a situação dada pela visita apagada.
+        let orderError: unknown = null;
+        try {
+            await visitsService.syncOrderAfterVisitDeleted(visit.o_id, deletedUserId);
+        } catch (e) {
+            orderError = e;
+            console.error('[visitsService] Visita excluída, mas a situação da OS não foi atualizada:', e);
+        }
+
         // Banco marcado: agora libera o armazenamento (melhor esforço).
         // Devolve quantos arquivos NÃO foram apagados para a tela avisar o usuário.
         let filesFailed = 0;
@@ -5113,7 +5123,82 @@ export const visitsService = {
             filesFailed = 1;
             console.warn('[visitsService] Visita excluída, mas não foi possível listar/apagar os arquivos do R2:', e);
         }
+        if (orderError) {
+            throw new Error('Visita excluída, mas não foi possível atualizar a situação da OS. Ajuste a OS manualmente.');
+        }
         return { filesFailed };
+    },
+
+    /**
+     * Depois de excluir uma visita: a OS assume a situação da visita encerrada mais
+     * recente que sobrou; sem nenhuma, volta a Autorizada com a data/hora da
+     * autorização (último log de situação 3). Equipe e líder não são alterados.
+     */
+    async syncOrderAfterVisitDeleted(orderId: number | string | null | undefined, userId: number): Promise<void> {
+        if (!orderId) return;
+        const { data: order, error: orderErr } = await supabase
+            .from('orders')
+            .select('id, status_id, parent_id')
+            .eq('id', orderId)
+            .maybeSingle();
+        if (orderErr) throw orderErr;
+        if (!order) return;
+
+        const { data: rows, error: visitsErr } = await supabase
+            .from('orders_visits')
+            .select('id, ov_status_id, ov_o_status_id, ov_o_progress, ov_ended_at')
+            .eq('o_id', orderId)
+            .eq('is_deleted', false);
+        if (visitsErr) throw visitsErr;
+
+        const plan = planOrderAfterVisitDeletion(
+            Number(order.status_id),
+            (rows || []).map(r => ({
+                id: r.id,
+                ovStatusId: r.ov_status_id != null ? Number(r.ov_status_id) : null,
+                ovOStatusId: r.ov_o_status_id != null ? Number(r.ov_o_status_id) : null,
+                ovOProgress: r.ov_o_progress != null ? Number(r.ov_o_progress) : null,
+                ovEndedAt: r.ov_ended_at ?? null,
+            })),
+        );
+        if (!plan) return;
+
+        let statusAt = plan.statusAt;
+        if (!statusAt) {
+            const { data: log, error: logErr } = await supabase
+                .from('orders_statuses_logs')
+                .select('order_status_at')
+                .eq('order_id', orderId)
+                .eq('order_status_id', ORDER_STATUS_AUTHORIZED)
+                .order('order_status_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+            if (logErr) throw logErr;
+            statusAt = log?.order_status_at ?? null;
+            if (!statusAt) {
+                console.warn('[visitsService] OS sem log de autorização; usando a data/hora atual.');
+                statusAt = getBrazilTimestamp();
+            }
+        }
+
+        const update: Record<string, unknown> = {
+            status_id: plan.statusId,
+            status_at: statusAt,
+            progress: plan.progress,
+            updated_user_id: userId,
+        };
+        if (plan.clearCause) update.cause_reason_id = null;
+
+        const { error: updErr } = await supabase
+            .from('orders')
+            .update(update)
+            .eq('id', orderId)
+            .eq('status_id', order.status_id);
+        if (updErr) throw updErr;
+
+        if (order.parent_id) {
+            await ordersService.updateServiceRequestStatus(order.parent_id.toString());
+        }
     },
 
     /**
