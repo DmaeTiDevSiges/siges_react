@@ -57,6 +57,8 @@ const WATCHDOG_INTERVAL_MS = 60_000;
 /** Backoff para voltar do GPS da WebView ao serviço nativo após falha. */
 const NATIVE_RETRY_MIN_MS = 60_000;
 const NATIVE_RETRY_MAX_MS = 10 * 60_000;
+/** Espera antes de revogar o token de um serviço parado (um reinício cancela). */
+const REVOKE_DELAY_MS = 20_000;
 /** Distance filter in meters — triggers a location write if user moves this much. */
 const DISTANCE_FILTER_M = 50;
 
@@ -107,6 +109,10 @@ export function useLocationTracker(
     const lastPosRef = useRef<{lat: number, lng: number} | null>(null);
     const heartbeatTimerRef = useRef<number | null>(null);
     const watchdogRef = useRef<number | null>(null);
+    // Parada do serviço nativo em andamento (o novo start espera terminar, senão o
+    // stop atrasado derruba o serviço recém-ligado) e revogação de token adiada.
+    const stopChainRef = useRef<Promise<void>>(Promise.resolve());
+    const pendingRevokeRef = useRef<number | null>(null);
     const [blockReason, setBlockReason] = useState<BlockReason>(null);
 
     const isLocationBlocked = blockReason !== null;
@@ -154,14 +160,23 @@ export function useLocationTracker(
 
         const stopAll = async () => {
             if (watcherIdRef.current === 'native') {
-                try {
-                    await LocationService.stop();
-                } catch (err) {
-                    console.warn('[LocationTracker] Failed to stop native service:', err);
-                }
                 watcherIdRef.current = null;
-                // Token deixa de valer: nada mais grava posição por este aparelho.
-                void dataService.revokeTrackerToken().catch(() => undefined);
+                logClientEvent('error', 'Rastreamento: serviço nativo parado (efeito reiniciado ou encerrado)', {
+                    extra: { stage: 'native_stop', level: 'info', hasOpenVisit, isAvailable, isTeamLeader, ...networkSnapshot() },
+                });
+                stopChainRef.current = stopChainRef.current
+                    .then(() => LocationService.stop())
+                    .catch(err => console.warn('[LocationTracker] Failed to stop native service:', err))
+                    .then(() => undefined);
+                // O token NÃO é revogado na hora: revoke e issue atuam no aparelho todo e,
+                // ao iniciar/encerrar uma visita (o efeito reinicia), a revogação atrasada
+                // podia cair em cima do token recém-emitido → 'invalid' → serviço desligado.
+                // Reiniciando, o novo start cancela este timer (emitir já revoga o anterior).
+                if (pendingRevokeRef.current !== null) window.clearTimeout(pendingRevokeRef.current);
+                pendingRevokeRef.current = window.setTimeout(() => {
+                    pendingRevokeRef.current = null;
+                    void dataService.revokeTrackerToken().catch(() => undefined);
+                }, REVOKE_DELAY_MS);
             }
             if (webWatchIdRef.current !== null) {
                 navigator.geolocation.clearWatch(webWatchIdRef.current);
@@ -288,6 +303,14 @@ export function useLocationTracker(
         const startNativeWatcher = async () => {
             // Token por aparelho (fn_tracker_issue_token): o serviço nativo grava
             // a posição só via fn_tracker_report_location, nunca direto em users.
+            // Espera a parada anterior (reinício por visita aberta/fechada) terminar e
+            // cancela a revogação adiada: o token novo não pode ser revogado por ela.
+            await stopChainRef.current;
+            if (cancelled) return;
+            if (pendingRevokeRef.current !== null) {
+                window.clearTimeout(pendingRevokeRef.current);
+                pendingRevokeRef.current = null;
+            }
             let trackerToken: string;
             try {
                 trackerToken = await dataService.issueTrackerToken();
@@ -326,6 +349,9 @@ export function useLocationTracker(
                 });
                 // 'native' é usado como sentinela para saber que o serviço está ativo
                 watcherIdRef.current = 'native';
+                logClientEvent('error', 'Rastreamento: serviço nativo iniciado', {
+                    extra: { stage: 'native_started', level: 'info', hasOpenVisit, isAvailable, intervalSeconds, ...networkSnapshot() },
+                });
                 nativeFallback = false;
                 nativeRetryDelayMs = NATIVE_RETRY_MIN_MS;
                 void remindBatteryOptimization();
