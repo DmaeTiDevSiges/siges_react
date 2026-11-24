@@ -115,3 +115,28 @@ SELECT u.name_short, u.is_available, u.is_ov_in_progress, u.ov_id_in_progress,
 FROM public.users u
 LEFT JOIN public.users_tracker t ON t.user_id = u.id
 WHERE u.name_short IN ('Souza', 'Tarcisio', 'R.Vinicius', 'Jones', 'Yuri', 'Messias', 'Mario');
+
+-- 9) tracked_at x heartbeat em users_tracker: nas funções do repositório os dois são gravados juntos
+--    (fn_tracker_report_location e fn_users_tracker_report_session usam v_now nos dois).
+--    tracked_at velho com heartbeat novo = a função/trigger AO VIVO difere do repositório.
+SELECT u.name_short, t.tracked_at, t.tracker_heartbeat_at,
+       round(extract(epoch FROM (t.tracker_heartbeat_at - t.tracked_at)) / 60) AS dif_min
+FROM public.users_tracker t
+JOIN public.users u ON u.id = t.user_id
+ORDER BY t.tracker_heartbeat_at DESC NULLS LAST
+LIMIT 20;
+
+-- 10) Definição AO VIVO das funções que gravam em users_tracker (comparar com as migrations 20261111/20261121).
+SELECT p.proname, pg_get_functiondef(p.oid) AS definicao
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public'
+  AND p.proname IN ('fn_tracker_report_location', 'fn_users_tracker_report_session', 'fn_users_sync_position_to_tracker');
+
+-- 11) Triggers em users_tracker e em users que tocam posição (algum pode sobrescrever tracked_at).
+SELECT c.relname AS tabela, t.tgname, pg_get_triggerdef(t.oid) AS definicao
+FROM pg_trigger t
+JOIN pg_class c ON c.oid = t.tgrelid
+WHERE NOT t.tgisinternal
+  AND c.relname IN ('users_tracker', 'users')
+  AND (c.relname = 'users_tracker' OR pg_get_triggerdef(t.oid) ILIKE '%tracker%' OR pg_get_triggerdef(t.oid) ILIKE '%tracked_at%');
