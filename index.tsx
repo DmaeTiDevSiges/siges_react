@@ -12,9 +12,13 @@ import { AuthProvider } from './contexts/AuthContext';
 import { UiVersionProvider } from './contexts/UiVersionContext';
 import { initClientDiagnostics } from './services/core/clientDiagnosticsService';
 import { queryClient, invalidateOnSyncEnd } from './services/core/queryClient';
+import { installClickPulse } from './utils/clickPulse';
 
 // Diagnóstico de recargas/fechamentos inesperados — antes de tudo.
 initClientDiagnostics();
+
+// Pulso (anel) ao clicar em qualquer botão/ícone; respeita "reduzir movimento".
+installClickPulse();
 
 // Fila offline terminou de enviar: o que as telas têm em memória pode estar velho.
 invalidateOnSyncEnd(queryClient);

@@ -803,3 +803,21 @@
 @media (prefers-reduced-motion: reduce) {
     .ui-step-enter { animation: none; }
 }
+
+/* Pulso (anel) ao clicar em botões/ícones — ver utils/clickPulse.ts. O anel é um
+   elemento fixo por cima do botão: não altera escala nem layout do botão. */
+@keyframes click-pulse-ring {
+    from { box-shadow: 0 0 0 0 var(--pulse-color, currentColor); opacity: 0.55; }
+    to   { box-shadow: 0 0 0 9px var(--pulse-color, currentColor); opacity: 0; }
+}
+
+.click-pulse-ring {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2147483000;
+    animation: click-pulse-ring 450ms ease-out forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .click-pulse-ring { display: none; }
+}
