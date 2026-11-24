@@ -732,7 +732,7 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                                 (visit.ovAssetsAmount || 0) === (visit.ovAssetsApprovedAmount || 0)
                             ) ? handleApproveVisit : undefined}
                             onDisapproveVisit={(
-                                isContractManagerAdminSuper &&
+                                canView('orders_visits_processing_disapprove') &&
                                 (visit.ovProcessingId || 1) !== 5 &&
                                 (visit.ovProcessingId || 1) !== 4 &&
                                 (visit.ovAssetsDisapprovedAmount || 0) > 0
