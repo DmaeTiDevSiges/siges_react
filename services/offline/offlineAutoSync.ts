@@ -61,6 +61,11 @@ export interface AutoSyncStatus {
  */
 const DATA_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const DATA_MAX_AGE_WITH_VERSIONS_MS = 7 * DATA_MAX_AGE_MS;
+/**
+ * Lista de usuários (equipe da visita): prazo próprio e menor. A versão dela só muda
+ * com created_at/updated_at; troca de status/departamento sem isso ficaria escondida.
+ */
+const USERS_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 /** Visita em andamento: atualiza o pacote a cada 30 min (ou ao abrir/reconectar). */
 const VISIT_MAX_AGE_MS = 30 * 60 * 1000;
 /** Conferência de mudanças (leve: OSs abertas + versões); só baixa o que mudou. */
@@ -191,7 +196,7 @@ const runOnce = async (trigger: Trigger): Promise<void> => {
     };
     const v = saved.versions;
     const tasks: (() => Promise<unknown>)[] = [];
-    if (plan.usersChanged || saved.usersAt === undefined || now - saved.usersAt >= maxAge) {
+    if (plan.usersChanged || saved.usersAt === undefined || now - saved.usersAt >= USERS_MAX_AGE_MS) {
         tasks.push(async () => {
             await dataService.getUsers();
             saved.usersAt = Date.now();
