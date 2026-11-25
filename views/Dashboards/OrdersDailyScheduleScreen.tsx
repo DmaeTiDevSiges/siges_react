@@ -1127,7 +1127,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     </button>
                 </div>
 
-                {/* Dia: ocupa o espaço entre os filtros e as ações (celular: linha própria, largura total) */}
+                {/* Dia: estica e ocupa o espaço entre os filtros e as ações (celular: linha própria, largura total) */}
                 <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 md:min-w-[260px]">
                     <div className="relative flex flex-1 items-center gap-1 h-[52px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1 shadow-sm">
                         <button type="button" onClick={() => changeDate(shiftDate(date, -1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Dia anterior">
