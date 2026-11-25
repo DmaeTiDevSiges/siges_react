@@ -910,6 +910,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         : [];
 
     const totalScheduled = board ? Object.values(board.columns).reduce((acc, list) => acc + list.length, 0) : 0;
+    const teamsWithOrders = board ? Object.values(board.columns).filter(list => list.length > 0).length : 0;
 
     // ── Relatório PDF: o que está na tela (equipes do filtro EQ.RESPONSAVEL e filtros da faixa de prioridade).
     const toReportOrder = (o: DailyScheduleOrder): DailyScheduleReportOrder => ({
@@ -943,6 +944,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         const collapsed = collapsedStrips[strip];
         const list = stripLists[strip];
         const filter = stripFilters[strip];
+        const hasStripFilter = filter.unit.length > 0 || filter.tag.length > 0 || filter.search.trim() !== '';
         const filtered = filterStrip(list, filter);
         const unitOptions = stripOptions(strip, 'unit');
         const tagOptions = stripOptions(strip, 'tag');
@@ -994,6 +996,17 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                             onClear={() => patchStripFilter(strip, { tag: [] })}
                             disabled={tagOptions.length === 0}
                         />
+                        {hasStripFilter && (
+                            <button
+                                type="button"
+                                onClick={() => patchStripFilter(strip, EMPTY_STRIP_FILTER)}
+                                className="flex items-center gap-1 h-[42px] px-3 rounded-xl text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:text-primary hover:border-primary transition-colors"
+                                title="Limpar unidade, setor e busca desta faixa"
+                            >
+                                <span className="material-symbols-outlined text-[16px]">filter_alt_off</span>
+                                Limpar
+                            </button>
+                        )}
                         <div className="relative w-full sm:w-64">
                             <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">search</span>
                             <input aria-label="Buscar OS, unidade, serviço..."
@@ -1037,7 +1050,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                                 order={order}
                                 variant={strip}
                                 rank={isOpen ? undefined : rankById.get(order.id) || 0}
-                                scheduledTeamCode={isOpen ? undefined : scheduledTeamCode(order.id)}
+                                scheduledTeamCode={scheduledTeamCode(order.id)}
                                 disabled={!canEditPriorities}
                                 onOpenActions={() => openActions(order, strip)}
                                 onOpenOrder={() => openOrder(order)}
@@ -1052,10 +1065,27 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
 
     return (
         <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Título */}
-            <div>
-                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Programação Diária</h2>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Priorize as OSs abertas, distribua entre as equipes e ordene a execução do dia.</p>
+            {/* Título + resumo do dia */}
+            <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                <div>
+                    <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">Programação Diária</h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Priorize as OSs abertas, distribua entre as equipes e ordene a execução do dia.</p>
+                </div>
+                {board && contract && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-black" aria-label="Resumo do dia">
+                        {!isPast && (
+                            <span className="rounded-lg px-2 py-1 text-sky-700 dark:text-sky-400 bg-sky-500/15">
+                                {board.openOrders.length} {board.openOrders.length === 1 ? 'aberta' : 'abertas'}
+                            </span>
+                        )}
+                        <span className="rounded-lg px-2 py-1 text-amber-700 dark:text-amber-400 bg-amber-500/15">
+                            {board.priorities.length} {board.priorities.length === 1 ? 'prioritária' : 'prioritárias'}
+                        </span>
+                        <span className="rounded-lg px-2 py-1 text-emerald-700 dark:text-emerald-400 bg-emerald-500/15">
+                            {totalScheduled} programada{totalScheduled === 1 ? '' : 's'} em {teamsWithOrders} {teamsWithOrders === 1 ? 'equipe' : 'equipes'}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Filtros (esquerda) + dia (centro, ocupa o que sobra) + ações (direita) */}
