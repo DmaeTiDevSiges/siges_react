@@ -3,7 +3,7 @@ import { formatDateInBrazil } from '../../utils/formatters';
 
 import { Company, User, OrderVisit, OrderVisitTeam } from '../../types';
 import { dataService } from '../../services/dataService';
-import { Map as LeafletMap, Marker } from 'leaflet';
+import { Map as LeafletMap, Marker, Circle } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { OptimizedImage } from '../../components/ui/OptimizedImage';
@@ -122,6 +122,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
     const mapRef = useRef<HTMLDivElement>(null);
     const leafletMapRef = useRef<LeafletMap | null>(null);
     const markersRef = useRef<Map<string, Marker>>(new Map());
+    /** Círculo de precisão (raio = tracker_accuracy, em metros) de cada técnico. */
+    const accuracyCirclesRef = useRef<Map<string, Circle>>(new Map());
     const polylinesRef = useRef<L.Polyline[]>([]);
     const routesCacheRef = useRef<Map<string, { geometry: [number, number][], lastPos: [number, number], distance: number }>>(new Map());
     const unitMarkersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -437,6 +439,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
             if (!filteredUserIds.has(userId)) {
                 marker.remove();
                 markersRef.current.delete(userId);
+                accuracyCirclesRef.current.get(userId)?.remove();
+                accuracyCirclesRef.current.delete(userId);
             }
         });
 
@@ -481,6 +485,32 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
 
                 const icon = L.divIcon({ className: '', html: iconHtml, iconSize: [40, 65], iconAnchor: [20, 55] });
 
+                // Círculo de precisão: raio = tracker_accuracy (m). Tracejado quando passa de 100 m
+                // (posição aproximada, provável rede e não GPS). Sem precisão, sem círculo.
+                const accuracy = user.trackerAccuracy;
+                const tooltipText = `${getRelativeTime(user.trackerHeartbeatAt)}${accuracy && accuracy > 0 ? ` · precisão ±${Math.round(accuracy)} m` : ''}`;
+                const existingCircle = accuracyCirclesRef.current.get(user.id);
+                if (accuracy && accuracy > 0) {
+                    const circleStyle = {
+                        color: visitColor,
+                        fillColor: visitColor,
+                        weight: 1,
+                        opacity: 0.6,
+                        fillOpacity: 0.12,
+                        dashArray: accuracy > 100 ? '4 4' : undefined,
+                        interactive: false,
+                    };
+                    if (existingCircle) {
+                        existingCircle.setStyle(circleStyle);
+                        existingCircle.setRadius(accuracy);
+                    } else {
+                        accuracyCirclesRef.current.set(user.id, L.circle([lat, lng], { ...circleStyle, radius: accuracy }).addTo(map));
+                    }
+                } else if (existingCircle) {
+                    existingCircle.remove();
+                    accuracyCirclesRef.current.delete(user.id);
+                }
+
                 if (markersRef.current.has(user.id)) {
                     const marker = markersRef.current.get(user.id);
                     if (marker) {
@@ -491,16 +521,19 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
                         const rafRef = markerRafRef.current.get(user.id)!;
                         animateMarkerTo(marker, lat, lng, 1200, rafRef);
                         marker.setIcon(icon);
+                        marker.setTooltipContent(tooltipText);
                     }
                 } else {
                     const marker = L.marker([lat, lng], { icon })
                         .addTo(map)
-                        .bindTooltip(getRelativeTime(user.trackerHeartbeatAt), {
+                        .bindTooltip(tooltipText, {
                             direction: 'top',
                             className: 'leaflet-tooltip-premium',
                             offset: [0, -20],
                             sticky: true
                         });
+                    // O marcador anda animado: o círculo acompanha a cada passo.
+                    marker.on('move', ev => accuracyCirclesRef.current.get(user.id)?.setLatLng((ev as L.LeafletEvent & { latlng: L.LatLng }).latlng));
                     markersRef.current.set(user.id, marker);
                 }
                 bounds.extend([lat, lng]);

@@ -211,6 +211,8 @@ export interface User {
   longitude?: number;
   trackerIntervalSeconds?: number;
   trackerHeartbeatAt?: string;
+  /** Precisão horizontal da última posição, em metros (users_tracker.tracker_accuracy). */
+  trackerAccuracy?: number;
 
   // Organization
   statusId?: number;

@@ -513,6 +513,7 @@ export const usersService = {
             latitude: item.latitude,
             longitude: item.longitude,
             trackerHeartbeatAt: item.tracker_heartbeat_at,
+            trackerAccuracy: item.tracker_accuracy != null ? Number(item.tracker_accuracy) : undefined,
             nameFull: item.name_full,
             nameShort: item.name_short,
             statusId: item.status_id,
