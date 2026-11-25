@@ -898,10 +898,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                 
                                 // Process the edited file
                                 if (user?.uuid) {
-                                    try {
-                                        setSaving(true);
-                                        const reader = new FileReader();
-                                        reader.onloadend = async () => {
+                                    setSaving(true);
+                                    const reader = new FileReader();
+                                    // O processamento é assíncrono dentro do callback: o try/catch precisa
+                                    // ficar AQUI (um try fora dele não pega o erro e o "finally" rodava antes).
+                                    reader.onloadend = async () => {
+                                        try {
                                             const imgData = reader.result as string;
 
                                             // Verify that a human face is present before allowing profile update
@@ -915,12 +917,9 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                                     message: verification.message,
                                                     type: 'error'
                                                 });
-                                                setSaving(false);
                                                 return;
                                             }
-                                            
-                                            setAvatarUrl(imgData);
-                                            
+
                                             setUploadProgress(0);
                                             await dataService.updateProfile(user.uuid, {
                                                 avatarUrl: imgData,
@@ -928,33 +927,40 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ user: initialUser,
                                             }, (progress) => {
                                                 setUploadProgress(progress);
                                             });
-                                            
+
+                                            // Só depois de gravar: antes, o avatar mudava na tela mesmo se o envio falhasse.
+                                            setAvatarUrl(imgData);
                                             if (onUserUpdate) {
                                                 onUserUpdate({
                                                     ...user,
                                                     avatarUrl: imgData
                                                 } as User);
                                             }
-                                            
+
                                             setModal({
                                                 isOpen: true,
                                                 title: 'Sucesso',
                                                 message: 'Avatar atualizado com sucesso!',
                                                 type: 'success'
                                             });
-                                        };
-                                        reader.readAsDataURL(file);
-                                    } catch (error) {
-                                        console.error("Error updating avatar", error);
-                                        setModal({
-                                            isOpen: true,
-                                            title: 'Erro',
-                                            message: 'Falha ao atualizar avatar no servidor.',
-                                            type: 'error'
-                                        });
-                                    } finally {
-                                        setSaving(false);
-                                    }
+                                        } catch (error) {
+                                            console.error("Error updating avatar", error);
+                                            setModal({
+                                                isOpen: true,
+                                                title: 'Erro',
+                                                // Erro do Supabase não é instância de Error: traz message/code/details.
+                                                message: (() => {
+                                                    const e = error as { message?: string; code?: string; details?: string } | null;
+                                                    const detail = [e?.message, e?.details, e?.code ? `(${e.code})` : ''].filter(Boolean).join(' ');
+                                                    return detail ? `Falha ao atualizar avatar: ${detail}` : 'Falha ao atualizar avatar no servidor.';
+                                                })(),
+                                                type: 'error'
+                                            });
+                                        } finally {
+                                            setSaving(false);
+                                        }
+                                    };
+                                    reader.readAsDataURL(file);
                                 }
                             }}
                         />

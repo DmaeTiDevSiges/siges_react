@@ -1269,7 +1269,7 @@ export const usersService = {
 
                 const { path, filename } = await usersService.uploadUserAvatar(userId, blob, onProgress);
 
-                const { error: dbUpdateError } = await supabase
+                const { data: updatedRows, error: dbUpdateError } = await supabase
                     .from('users')
                     .update({
                         img_file_path: path,
@@ -1281,9 +1281,15 @@ export const usersService = {
                             img_face_reason: 'ok',
                         } : {}),
                     })
-                    .eq('id', userId);
+                    .eq('id', userId)
+                    .select('id');
 
                 if (dbUpdateError) throw dbUpdateError;
+                // UPDATE que não casa nenhuma linha (política de acesso/RLS) não dá erro no
+                // Supabase: a foto subia, a tela dizia "sucesso" e o avatar continuava o antigo.
+                if (!updatedRows || updatedRows.length === 0) {
+                    throw new Error('A foto foi enviada, mas o cadastro do usuário não foi atualizado (sem permissão para gravar).');
+                }
 
                 if (oldFullFile && !oldFullFile.includes('settings/images')) {
                     try {
