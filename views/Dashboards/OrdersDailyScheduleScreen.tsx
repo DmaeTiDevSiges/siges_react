@@ -92,6 +92,7 @@ const teamFields = (team: DailyScheduleTeam): Partial<DailyScheduleOrder> => ({
 
 const CONTRACT_STORAGE_KEY = 'dailySchedule_contractId';
 /** Dia de atendimento escolhido: ao sair e voltar para a tela, continua o mesmo. */
+const STRIPS_COLLAPSED_KEY = 'siges-daily-schedule-strips-collapsed';
 const DATE_STORAGE_KEY = 'dailySchedule_date';
 const SAVE_DELAY_MS = 1000;
 const ROUTE_KEY = 'orders_daily_schedule';
@@ -237,8 +238,10 @@ const PriorityStrip: React.FC<{
     accepting: boolean;
     refusing: boolean;
     itemIds: string[];
+    /** Recolhida: só o cabeçalho (a seção continua sendo área de soltar). */
+    collapsed?: boolean;
     children: React.ReactNode;
-}> = ({ containerId, className, header, accepting, refusing, itemIds, children }) => {
+}> = ({ containerId, className, header, accepting, refusing, itemIds, collapsed = false, children }) => {
     const { setNodeRef } = useDroppable({ id: containerId, data: { container: containerId } });
     const { over } = useDndContext();
     const scroll = useHorizontalScroll(true);
@@ -255,6 +258,7 @@ const PriorityStrip: React.FC<{
         <section ref={setNodeRef} className={`${className} transition-all ${highlight}`}>
             {header}
             <div
+                hidden={collapsed}
                 ref={scroll.ref}
                 onMouseDown={scroll.onMouseDown}
                 onClickCapture={scroll.onClickCapture}
@@ -293,6 +297,20 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const [teamFilter, setTeamFilter] = useState<string[]>(() => loadFilters(contractId).team);
     /** Filtros das faixas ABERTAS / PRIORIDADE: vazio = todos. Unidade/setor salvos por contrato. */
     const [stripFilters, setStripFilters] = useState<Record<StripKind, StripFilter>>(() => loadFilters(contractId).strips);
+    // Faixas recolhidas (lembra a escolha): dá altura às equipes do dia, que ficam abaixo.
+    const [collapsedStrips, setCollapsedStrips] = useState<Record<StripKind, boolean>>(() => {
+        try {
+            const saved = JSON.parse(readStorage(STRIPS_COLLAPSED_KEY) || '{}');
+            return { [OPEN]: saved?.[OPEN] === true, [PRIORITY]: saved?.[PRIORITY] === true } as Record<StripKind, boolean>;
+        } catch {
+            return { [OPEN]: false, [PRIORITY]: false } as Record<StripKind, boolean>;
+        }
+    });
+    const toggleStrip = (strip: StripKind) => setCollapsedStrips(prev => {
+        const next = { ...prev, [strip]: !prev[strip] };
+        writeStorage(STRIPS_COLLAPSED_KEY, JSON.stringify(next));
+        return next;
+    });
     useEffect(() => {
         saveFilters(contractId, { team: teamFilter, strips: stripFilters });
     }, [contractId, teamFilter, stripFilters]);
@@ -922,6 +940,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
     const renderStrip = (strip: StripKind) => {
         if (!board) return null;
         const isOpen = strip === OPEN;
+        const collapsed = collapsedStrips[strip];
         const list = stripLists[strip];
         const filter = stripFilters[strip];
         const filtered = filterStrip(list, filter);
@@ -935,7 +954,17 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 : isPast ? 'Nenhuma prioridade registrada neste dia.' : "Arraste OSs de OS's ABERTAS para cá.";
         const header = (
             <>
-                <div className="flex flex-wrap items-center gap-3 mb-1">
+                <div className={`flex flex-wrap items-center gap-3 ${collapsed ? '' : 'mb-1'}`}>
+                    <button
+                        type="button"
+                        onClick={() => toggleStrip(strip)}
+                        aria-expanded={!collapsed}
+                        aria-label={`${collapsed ? 'Expandir' : 'Recolher'} ${isOpen ? "OS's abertas" : "OS's prioridade de atendimento"}`}
+                        title={collapsed ? 'Expandir' : 'Recolher'}
+                        className="flex items-center justify-center w-7 h-7 -ml-1 rounded-lg text-slate-400 hover:text-primary hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
+                        <span className={`material-symbols-outlined text-[22px] transition-transform ${collapsed ? '-rotate-90' : ''}`}>expand_more</span>
+                    </button>
                     <h3 className="font-extrabold text-slate-900 dark:text-white">{isOpen ? "OS's ABERTAS" : "OS's PRIORIDADE DE ATENDIMENTO"}</h3>
                     <span className={`text-xs font-black rounded-lg px-2 py-0.5 ${isOpen
                         ? 'text-sky-700 dark:text-sky-400 bg-sky-500/15'
@@ -943,13 +972,13 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     >
                         {filtered.length !== list.length ? `${filtered.length} de ${list.length}` : list.length}
                     </span>
-                    {canEditPriorities && (
+                    {canEditPriorities && !collapsed && (
                         <span className="hidden lg:flex items-center gap-1 text-[11px] font-semibold text-slate-400">
                             <span className="material-symbols-outlined text-[14px]">{isOpen ? 'south' : 'swap_horiz'}</span>
                             {isOpen ? "Arraste para OS's PRIORIDADE DE ATENDIMENTO para priorizar" : 'Arraste para ordenar: à esquerda, mais prioritária'}
                         </span>
                     )}
-                    <div className="flex flex-wrap items-center gap-2 ml-auto w-full lg:w-auto">
+                    {!collapsed && <div className="flex flex-wrap items-center gap-2 ml-auto w-full lg:w-auto">
                         <FilterSelect
                             autoWidth
                             label="UNIDADE"
@@ -975,9 +1004,9 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                                 className="w-full pl-8 pr-3 py-2 rounded-xl text-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
-                    </div>
+                    </div>}
                 </div>
-                {!isOpen && board.prioritiesInheritedFrom && (
+                {!isOpen && !collapsed && board.prioritiesInheritedFrom && (
                     <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-1">
                         <span className="material-symbols-outlined text-[14px]">content_copy</span>
                         Prioridade deste dia ainda não registrada — partindo da de {formatDateInBrazil(`${board.prioritiesInheritedFrom}T12:00:00`, 'date', 'pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}. Reordene para registrar.
@@ -992,10 +1021,11 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
         return (
             <PriorityStrip
                 containerId={strip}
-                className={`rounded-2xl border p-4 mb-4 ${isOpen
+                className={`rounded-2xl border mb-4 ${collapsed ? 'px-4 py-2.5' : 'p-4'} ${isOpen
                     ? 'bg-sky-50/50 dark:bg-sky-950/20 border-sky-200/50 dark:border-sky-800/30'
                     : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/30'}`}
                 header={header}
+                collapsed={collapsed}
                 accepting={canEditPriorities && ((fromOtherStrip && !blockedToOpen) || (fromTeamColumn && canReturnFromTeam(active!.order, strip)))}
                 refusing={blockedToOpen || (fromTeamColumn && !canReturnFromTeam(active!.order, strip))}
                 itemIds={filtered.map(o => `${prefix}${o.id}`)}
@@ -1028,7 +1058,7 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Priorize as OSs abertas, distribua entre as equipes e ordene a execução do dia.</p>
             </div>
 
-            {/* Contrato (esquerda) + dia (direita) */}
+            {/* Filtros (esquerda) + dia (centro, ocupa o que sobra) + ações (direita) */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
                     <FilterSelect
@@ -1067,6 +1097,45 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     </button>
                 </div>
 
+                {/* Dia: ocupa o espaço entre os filtros e as ações (celular: linha própria, largura total) */}
+                <div className="flex items-center gap-2 w-full md:w-auto md:flex-1 md:min-w-[260px]">
+                    <div className="relative flex flex-1 items-center gap-1 h-[52px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1 shadow-sm">
+                        <button type="button" onClick={() => changeDate(shiftDate(date, -1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Dia anterior">
+                            <span className="material-symbols-outlined text-slate-400 text-lg">chevron_left</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setCalendarOpen(open => !open)}
+                            className="flex flex-1 items-center gap-2 px-2 py-1.5 justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                            title="Escolher dia"
+                            aria-expanded={calendarOpen}
+                        >
+                            <span className="material-symbols-outlined text-primary text-lg">calendar_month</span>
+                            <span className="text-sm font-bold text-slate-900 dark:text-white capitalize">{dateLabel}</span>
+                        </button>
+                        <button type="button" onClick={() => changeDate(shiftDate(date, 1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Próximo dia">
+                            <span className="material-symbols-outlined text-slate-400 text-lg">chevron_right</span>
+                        </button>
+                        {calendarOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setCalendarOpen(false)} />
+                                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-2">
+                                    <Calendar value={date} onChange={changeDate} />
+                                </div>
+                            </>
+                        )}
+                    </div>
+                    {date !== today && (
+                        <button
+                            type="button"
+                            onClick={() => changeDate(today)}
+                            className="h-[52px] shrink-0 px-4 rounded-xl text-xs font-black uppercase tracking-wider text-primary bg-primary/10 hover:bg-primary/15"
+                        >
+                            Hoje
+                        </button>
+                    )}
+                </div>
+
                 <div className="flex flex-wrap items-center gap-2 md:justify-end">
                     {saveState !== 'idle' && (
                         <span className={`flex items-center gap-1 text-xs font-bold ${saveState === 'error' ? 'text-rose-500' : 'text-slate-400'}`}>
@@ -1096,41 +1165,6 @@ export const OrdersDailyScheduleScreen: React.FC<OrdersDailyScheduleScreenProps>
                     >
                         <FaWhatsapp className="text-[14px]" />
                     </button>
-                    {date !== today && (
-                        <button
-                            type="button"
-                            onClick={() => changeDate(today)}
-                            className="px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider text-primary bg-primary/10 hover:bg-primary/15"
-                        >
-                            Hoje
-                        </button>
-                    )}
-                    <div className="relative flex items-center gap-1 h-[52px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1 shadow-sm">
-                        <button type="button" onClick={() => changeDate(shiftDate(date, -1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Dia anterior">
-                            <span className="material-symbols-outlined text-slate-400 text-lg">chevron_left</span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setCalendarOpen(open => !open)}
-                            className="flex items-center gap-2 px-2 py-1.5 min-w-[170px] justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
-                            title="Escolher dia"
-                            aria-expanded={calendarOpen}
-                        >
-                            <span className="material-symbols-outlined text-primary text-lg">calendar_month</span>
-                            <span className="text-sm font-bold text-slate-900 dark:text-white capitalize">{dateLabel}</span>
-                        </button>
-                        <button type="button" onClick={() => changeDate(shiftDate(date, 1))} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Próximo dia">
-                            <span className="material-symbols-outlined text-slate-400 text-lg">chevron_right</span>
-                        </button>
-                        {calendarOpen && (
-                            <>
-                                <div className="fixed inset-0 z-40" onClick={() => setCalendarOpen(false)} />
-                                <div className="absolute right-0 top-full mt-2 z-50 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-xl p-2">
-                                    <Calendar value={date} onChange={changeDate} />
-                                </div>
-                            </>
-                        )}
-                    </div>
                 </div>
             </div>
 
