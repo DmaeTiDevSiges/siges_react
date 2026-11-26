@@ -804,18 +804,30 @@
     .ui-step-enter { animation: none; }
 }
 
-/* Pulso (anel) ao clicar em botões/ícones — ver utils/clickPulse.ts. O anel é um
+/* Pulso circular ("gota") ao clicar em botões/ícones — ver utils/clickPulse.ts. É um
    elemento fixo por cima do botão: não altera escala nem layout do botão. */
-@keyframes click-pulse-ring {
-    from { box-shadow: 0 0 0 0 var(--pulse-color, currentColor); opacity: 0.55; }
-    to   { box-shadow: 0 0 0 9px var(--pulse-color, currentColor); opacity: 0; }
+@keyframes click-pulse-drop {
+    from { transform: scale(0.15); opacity: 0.7; }
+    to   { transform: scale(1); opacity: 0; }
 }
 
 .click-pulse-ring {
     position: fixed;
     pointer-events: none;
     z-index: 2147483000;
-    animation: click-pulse-ring 450ms ease-out forwards;
+    border-radius: 9999px;
+    border: 2px solid var(--pulse-color, currentColor);
+    animation: click-pulse-drop 500ms ease-out forwards;
+}
+
+/* Miolo translúcido da gota (a cor vem do botão, que pode ser opaca). */
+.click-pulse-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--pulse-color, currentColor);
+    opacity: 0.35;
 }
 
 @media (prefers-reduced-motion: reduce) {

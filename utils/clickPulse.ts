@@ -1,15 +1,19 @@
 /**
- * Efeito de pulso (anel) ao clicar/tocar em botões e ícones clicáveis, no app todo.
+ * Efeito de pulso circular ("gota") ao clicar/tocar em botões e ícones, no app todo.
  *
  * Um único ouvinte no document: acha o elemento clicável mais próximo do alvo e
- * desenha um anel por cima dele (elemento fixo, sem mexer no botão — não altera
- * escala nem layout e não é cortado por overflow:hidden). Respeita "reduzir
- * movimento" do sistema. Para excluir um elemento: data-no-pulse.
+ * desenha um círculo que se espalha a partir do ponto tocado (elemento fixo, sem
+ * mexer no botão — não altera escala nem layout e não é cortado por
+ * overflow:hidden). Respeita "reduzir movimento" do sistema. Para excluir um
+ * elemento: data-no-pulse.
  */
 
 const PULSE_CLASS = 'click-pulse-ring';
-const PULSE_MS = 450;
+const PULSE_MS = 500;
 const MAX_LEVELS = 6;
+/** Diâmetro final da gota (px): acompanha o botão, dentro destes limites. */
+const MIN_DIAMETER = 44;
+const MAX_DIAMETER = 84;
 
 const CLICKABLE = [
     'button',
@@ -54,22 +58,25 @@ const ringColor = (el: HTMLElement) => {
 const reducedMotion = () =>
     typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export const pulseElement = (el: HTMLElement) => {
+/** `point` = onde foi o toque; sem ele (teclado), a gota sai do centro do elemento. */
+export const pulseElement = (el: HTMLElement, point?: { x: number; y: number }) => {
     if (reducedMotion()) return;
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    const ring = document.createElement('div');
-    ring.className = PULSE_CLASS;
-    ring.setAttribute('aria-hidden', 'true');
-    ring.style.left = `${rect.left}px`;
-    ring.style.top = `${rect.top}px`;
-    ring.style.width = `${rect.width}px`;
-    ring.style.height = `${rect.height}px`;
-    ring.style.borderRadius = getComputedStyle(el).borderRadius;
-    ring.style.setProperty('--pulse-color', ringColor(el));
-    document.body.appendChild(ring);
-    const remove = () => ring.remove();
-    ring.addEventListener('animationend', remove, { once: true });
+    const x = point?.x ?? rect.left + rect.width / 2;
+    const y = point?.y ?? rect.top + rect.height / 2;
+    const diameter = Math.round(Math.min(MAX_DIAMETER, Math.max(MIN_DIAMETER, Math.min(rect.width, rect.height) * 1.8)));
+    const drop = document.createElement('div');
+    drop.className = PULSE_CLASS;
+    drop.setAttribute('aria-hidden', 'true');
+    drop.style.left = `${x - diameter / 2}px`;
+    drop.style.top = `${y - diameter / 2}px`;
+    drop.style.width = `${diameter}px`;
+    drop.style.height = `${diameter}px`;
+    drop.style.setProperty('--pulse-color', ringColor(el));
+    document.body.appendChild(drop);
+    const remove = () => drop.remove();
+    drop.addEventListener('animationend', remove, { once: true });
     window.setTimeout(remove, PULSE_MS + 150); // garantia (aba em segundo plano não dispara animationend)
 };
 
@@ -82,7 +89,8 @@ export const installClickPulse = (): (() => void) => {
     // Captura: continua valendo se a tela chamar stopPropagation no clique.
     const onClick = (event: MouseEvent) => {
         const target = findPulseTarget(event.target);
-        if (target) pulseElement(target);
+        // detail 0 = clique pelo teclado ou por código: não há ponto de toque.
+        if (target) pulseElement(target, event.detail > 0 ? { x: event.clientX, y: event.clientY } : undefined);
     };
     document.addEventListener('click', onClick, true);
     return () => {

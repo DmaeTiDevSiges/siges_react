@@ -38,12 +38,19 @@ describe('installClickPulse', () => {
     });
     afterEach(() => stop());
 
-    it('desenha um anel por cima do botão sem alterá-lo', () => {
-        document.getElementById('b')!.click();
+    it('desenha uma gota circular no ponto tocado, sem alterar o botão', () => {
+        document.getElementById('b')!.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1, clientX: 30, clientY: 50 }));
         expect(rings()).toHaveLength(1);
-        const ring = rings()[0] as HTMLElement;
-        expect([ring.style.left, ring.style.top, ring.style.width, ring.style.height]).toEqual(['10px', '20px', '100px', '40px']);
+        const drop = rings()[0] as HTMLElement;
+        // botão 100x40 → diâmetro 72, centrado no toque (30, 50)
+        expect([drop.style.left, drop.style.top, drop.style.width, drop.style.height]).toEqual(['-6px', '14px', '72px', '72px']);
         expect(document.getElementById('b')!.getAttribute('style')).toBeNull();
+    });
+
+    it('pelo teclado a gota sai do centro do botão', () => {
+        document.getElementById('b')!.click();
+        const drop = rings()[0] as HTMLElement;
+        expect([drop.style.left, drop.style.top]).toEqual(['24px', '4px']);
     });
 
     it('não anima com "reduzir movimento" ligado', () => {
