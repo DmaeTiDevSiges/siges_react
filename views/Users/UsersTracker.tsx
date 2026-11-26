@@ -67,6 +67,15 @@ function animateMarkerTo(
     if (rafRef) rafRef.current = id;
 }
 
+/** Raio mínimo do círculo de precisão, em pixels: com zoom afastado 20 m viram menos de 1 px e o círculo sumia. */
+const MIN_ACCURACY_RING_PX = 22;
+
+/** Raio (m) a desenhar: a precisão real, ou o mínimo visível no zoom atual (o que for maior). */
+const visibleAccuracyRadius = (map: LeafletMap, lat: number, accuracyMeters: number): number => {
+    const metersPerPixel = (40075016.686 * Math.cos((lat * Math.PI) / 180)) / (256 * Math.pow(2, map.getZoom()));
+    return Math.max(accuracyMeters, MIN_ACCURACY_RING_PX * metersPerPixel);
+};
+
 const getRelativeTime = (isoString?: string): string => {
     if (!isoString) return 'Sem dados';
     const diff = Date.now() - new Date(isoString).getTime();
@@ -124,6 +133,8 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
     const markersRef = useRef<Map<string, Marker>>(new Map());
     /** Círculo de precisão (raio = tracker_accuracy, em metros) de cada técnico. */
     const accuracyCirclesRef = useRef<Map<string, Circle>>(new Map());
+    /** Precisão real (m) de cada círculo, para redesenhar o raio mínimo quando o zoom muda. */
+    const accuracyMetersRef = useRef<Map<string, number>>(new Map());
     const polylinesRef = useRef<L.Polyline[]>([]);
     const routesCacheRef = useRef<Map<string, { geometry: [number, number][], lastPos: [number, number], distance: number }>>(new Map());
     const unitMarkersRef = useRef<Map<string, L.Marker>>(new Map());
@@ -342,6 +353,14 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
 
         leafletMapRef.current = mapInstance;
 
+        // Zoom muda: o raio mínimo visível (em pixels) vale outro tanto de metros.
+        mapInstance.on('zoomend', () => {
+            accuracyCirclesRef.current.forEach((circle, userId) => {
+                const meters = accuracyMetersRef.current.get(userId);
+                if (meters) circle.setRadius(visibleAccuracyRadius(mapInstance, circle.getLatLng().lat, meters));
+            });
+        });
+
         return () => {
             mapInstance.remove();
             leafletMapRef.current = null;
@@ -441,6 +460,7 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
                 markersRef.current.delete(userId);
                 accuracyCirclesRef.current.get(userId)?.remove();
                 accuracyCirclesRef.current.delete(userId);
+                accuracyMetersRef.current.delete(userId);
             }
         });
 
@@ -494,21 +514,24 @@ export const UsersTracker: React.FC<UsersTrackerProps> = ({ company, onBack, lea
                     const circleStyle = {
                         color: visitColor,
                         fillColor: visitColor,
-                        weight: 1,
-                        opacity: 0.6,
-                        fillOpacity: 0.12,
+                        weight: 2,
+                        opacity: 0.7,
+                        fillOpacity: 0.15,
                         dashArray: accuracy > 100 ? '4 4' : undefined,
                         interactive: false,
                     };
+                    accuracyMetersRef.current.set(user.id, accuracy);
+                    const radius = visibleAccuracyRadius(map, lat, accuracy);
                     if (existingCircle) {
                         existingCircle.setStyle(circleStyle);
-                        existingCircle.setRadius(accuracy);
+                        existingCircle.setRadius(radius);
                     } else {
-                        accuracyCirclesRef.current.set(user.id, L.circle([lat, lng], { ...circleStyle, radius: accuracy }).addTo(map));
+                        accuracyCirclesRef.current.set(user.id, L.circle([lat, lng], { ...circleStyle, radius }).addTo(map));
                     }
                 } else if (existingCircle) {
                     existingCircle.remove();
                     accuracyCirclesRef.current.delete(user.id);
+                    accuracyMetersRef.current.delete(user.id);
                 }
 
                 if (markersRef.current.has(user.id)) {
