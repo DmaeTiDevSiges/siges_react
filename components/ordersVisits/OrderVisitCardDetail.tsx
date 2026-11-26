@@ -5,6 +5,7 @@ import { useUiVersion } from '../../contexts/UiVersionContext';
 import { OrderVisitCardDetailV2 } from './OrderVisitCardDetailV2';
 import { OrderVisit, OrderVisitTeam } from '../../types';
 import { Card } from '../ui/Card';
+import { RemoveMemberButton } from './RemoveMemberButton';
 import { UserAvatar } from '../ui/UserAvatar';
 import { formatDateTime } from '../../utils/formatters';
 import { OrderVisitProcessingButton } from './OrderVisitProcessingButton';
@@ -156,7 +157,7 @@ const OrderVisitCardDetailV1: React.FC<OrderVisitCardDetailProps> = ({
                 )}
             </div>
             <div className="">
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-3 mb-4 pt-1">
                     {team.map((member) => (
                         <div key={member.userId} className="flex flex-col items-center gap-1 group">
                             <div className="relative h-14 w-14 flex items-center justify-center">
@@ -164,17 +165,11 @@ const OrderVisitCardDetailV1: React.FC<OrderVisitCardDetailProps> = ({
                                     src={member.userAvatarUrl}
                                     name={member.userName || 'Membro'}
                                     size="md"
-                                    status={(member.userIsAvailable === true || (member.userIsAvailable as any) === 1 || (member.userIsAvailable as any) === 'true' || (member as any).user_is_available === true || (member as any).user_is_available === 1 || (member as any).user_is_available === 'true') ? 'available' : 'unavailable'}
-                                    isOvInProgress={visit.ovStatusId === 1}
+                                    visitOpen={Number(visit.ovStatusId) === 1}
                                     className="shadow-sm"
                                 />
                                 {onRemoveTeamMember && !member.isLeader && !visit.isFiled && (
-                                    <button aria-label="Remover membro da equipe"
-                                        onClick={() => onRemoveTeamMember(member.userId)}
-                                        className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-md transform hover:scale-110 transition-transform border-2 border-white"
-                                    >
-                                        <span className="material-symbols-outlined text-[14px]">delete</span>
-                                    </button>
+                                    <RemoveMemberButton label="Remover membro da equipe" onClick={() => onRemoveTeamMember(member.userId)} />
                                 )}
                             </div>
                             <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 text-center w-14 truncate">

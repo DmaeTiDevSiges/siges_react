@@ -3416,14 +3416,19 @@ export const visitsService = {
      * Visível/acionável quando: visita está REPORTADA (2) e ovAssetsAmount === ovAssetsRevisedAmount.
      * @param visitId ID da visita
      * @param userId ID do usuário que está marcando como revisada
+     * @param situation Situação da OS conferida pelo revisor (progresso em %)
      */
-    async markOrderVisitAsRevised(visitId: string, userId: string): Promise<void> {
+    async markOrderVisitAsRevised(
+        visitId: string,
+        userId: string,
+        situation: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number }
+    ): Promise<void> {
         const visitIdNum = parseInt(visitId, 10);
 
         // 1. Buscar a visita
         const { data: visit, error: visitError } = await supabase
             .from('v_orders_visits')
-            .select('id, o_id, ov_processing_id, ov_mask, ov_team_leader_id')
+            .select('id, o_id, ov_processing_id, ov_mask, ov_team_leader_id, ov_ended_at')
             .eq('id', visitIdNum)
             .single();
 
@@ -3458,11 +3463,55 @@ export const visitsService = {
             throw new Error(`Todos os ativos precisam estar revisados (${revisedAssets}/${totalAssets} revisados)`);
         }
 
-        // 4. Atualizar a visita para processing_id = 3 (REVISADA)
         const timestamp = getBrazilTimestamp();
+        const progress = situation.statusId === 8 ? 1 : situation.progress / 100;
+
+        // 4. Atualizar a OS (e a SS pai) antes da visita: se falhar, a visita
+        // continua REPORTADA e a revisão pode ser refeita
+        const { data: order, error: orderError } = await supabase
+            .from('orders')
+            .select('status_id, parent_id')
+            .eq('id', visit.o_id)
+            .single();
+
+        if (orderError || !order) {
+            console.error('markOrderVisitAsRevised: order fetch error', orderError);
+            throw new Error('Erro ao atualizar a OS');
+        }
+
+        // OS na situação 5 não é alterada (mesma regra da aprovação)
+        if (Number(order.status_id) !== 5) {
+            const { error: orderUpdateError } = await supabase
+                .from('orders')
+                .update({
+                    status_id: situation.statusId,
+                    status_at: visit.ov_ended_at,
+                    progress,
+                    cause_reason_id: situation.causeReasonId,
+                    updated_user_id: Number(userId),
+                    updated_at: timestamp
+                })
+                .eq('id', visit.o_id)
+                .select('id')
+                .single();
+
+            if (orderUpdateError) {
+                console.error('markOrderVisitAsRevised: order update error', orderUpdateError);
+                throw new Error('Erro ao atualizar a OS');
+            }
+
+            if (order.parent_id) {
+                await ordersService.updateServiceRequestStatus(String(order.parent_id));
+            }
+        }
+
+        // 5. Atualizar a visita para processing_id = 3 (REVISADA)
         const { error: updateError } = await supabase
             .from('orders_visits')
             .update({
+                ov_o_status_id: situation.statusId,
+                ov_o_progress: progress,
+                ov_o_suspended_reason_id: situation.statusId === 6 ? (situation.suspendedReasonId ?? null) : null,
                 ov_processing_id: 3,
                 ov_revised_user_id: Number(userId),
                 ov_revised_at: timestamp
@@ -3474,7 +3523,7 @@ export const visitsService = {
             throw new Error('Erro ao marcar visita como revisada');
         }
 
-        // 5. Notificar o líder da equipe
+        // 6. Notificar o líder da equipe
         try {
             if (visit.ov_team_leader_id) {
                 const { data: currentUser } = await supabase

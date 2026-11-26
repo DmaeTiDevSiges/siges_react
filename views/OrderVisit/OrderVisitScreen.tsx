@@ -32,7 +32,7 @@ interface OrderVisitPageProps {
 
 
 import { OrderVisitBottomNav, VisitTab } from '../../components/ordersVisits/OrderVisitBottomNav';
-import { CloseVisitModal } from '../../components/ordersVisits/CloseVisitModal';
+import { CloseVisitModal, type VisitSituation } from '../../components/ordersVisits/CloseVisitModal';
 import { ConfirmDisapproveVisitModal } from '../../components/ordersVisits/ConfirmDisapproveVisitModal';
 import { DeleteVisitModal } from '../../components/ordersVisits/DeleteVisitModal';
 import { OrderVisitVehiclesList } from './OrderVisitVehicle/OrderVisitVehiclesList';
@@ -82,6 +82,8 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
     const [isFiling, setIsFiling] = useState(false);
     const [isRevising, setIsRevising] = useState(false);
     const [isReviseModalOpen, setIsReviseModalOpen] = useState(false);
+    const [reviseValues, setReviseValues] = useState<Partial<VisitSituation>>({});
+    const [reviseFailed, setReviseFailed] = useState(false);
     const [isMissingSignatureModalOpen, setIsMissingSignatureModalOpen] = useState(false);
     const [isReverseConfirmModalOpen, setIsReverseConfirmModalOpen] = useState(false);
     const [isReverseAlertModalOpen, setIsReverseAlertModalOpen] = useState(false);
@@ -536,21 +538,40 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
         }
     };
 
-    const handleMarkAsRevised = () => {
-        setIsReviseModalOpen(true);
+    const handleMarkAsRevised = async () => {
+        if (!visit) return;
+        try {
+            setIsRevising(true);
+            // A causa fica na OS: sem ela o modal não abriria preenchido
+            const order = await dataService.getOrderById(visit.oId);
+            setReviseValues({
+                statusId: visit.ovOStatusId,
+                suspendedReasonId: visit.ovOSuspendedReasonId,
+                causeReasonId: order?.causeReasonId,
+                progress: visit.progress
+            });
+            setReviseFailed(false);
+            setIsReviseModalOpen(true);
+        } catch (error) {
+            console.error('Error loading order for revision:', error);
+            toast.error('Erro ao carregar dados da OS');
+        } finally {
+            setIsRevising(false);
+        }
     };
 
-    const handleConfirmReviseVisit = async () => {
+    const handleConfirmReviseVisit = async (situation: VisitSituation) => {
         if (!visit || !currentUser) return;
 
         try {
             setIsRevising(true);
-            await dataService.markOrderVisitAsRevised(visit.id, currentUser.id);
+            await dataService.markOrderVisitAsRevised(visit.id, currentUser.id, situation);
             toast.success('Visita marcada como REVISADA!');
             await refreshVisit();
             setIsReviseModalOpen(false);
         } catch (error) {
             console.error('Error marking visit as revised:', error);
+            setReviseFailed(true);
             toast.error(error instanceof Error ? error.message : 'Erro ao marcar visita como revisada');
         } finally {
             setIsRevising(false);
@@ -1006,33 +1027,15 @@ export const OrderVisitPage: React.FC<OrderVisitPageProps> = ({
                 }}
             />
 
-            {/* Modal de Marcar como Revisada */}
-            <AlertModal
+            {/* Modal de Marcar como Revisada: confere a situação da OS */}
+            <CloseVisitModal
+                mode="review"
                 isOpen={isReviseModalOpen}
                 onClose={() => setIsReviseModalOpen(false)}
-                icon="fact_check"
-                iconClassName="text-blue-500"
-                iconBgClassName="bg-blue-50 dark:bg-blue-900/20"
-                iconRingClassName="ring-blue-50/50 dark:ring-blue-900/10"
-                title="Marcar Visita como REVISADA"
-                description={
-                    <>
-                        Todos os <span className="font-black text-slate-700 dark:text-slate-200">{visit.ovAssetsAmount}</span> ativos desta visita já foram revisados.
-                        Confirme para marcar a visita como <span className="font-black text-blue-600">REVISADA</span>.
-                    </>
-                }
-                primaryAction={{
-                    label: isRevising ? 'REVISANDO...' : 'Confirmar Revisão',
-                    icon: 'fact_check',
-                    onClick: handleConfirmReviseVisit,
-                    variant: 'primary',
-                    disabled: isRevising
-                }}
-                secondaryAction={{
-                    label: 'Cancelar',
-                    onClick: () => setIsReviseModalOpen(false),
-                    variant: 'ghost'
-                }}
+                onConfirm={handleConfirmReviseVisit}
+                initialValues={reviseValues}
+                saveFailed={reviseFailed}
+                isLoading={isRevising}
             />
 
             {/* Modal de Alerta - Movimentações de Ativos Impedindo Estorno */}

@@ -10,6 +10,8 @@ interface UserAvatarProps {
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
     status?: UserStatus;
     isOvInProgress?: boolean;
+    /** Avatar da equipe de uma visita: borda vermelha se aberta, sem borda se não. Substitui a borda de status. */
+    visitOpen?: boolean;
     className?: string;
     imageClassName?: string;
     badgeSrc?: string;
@@ -32,6 +34,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     size = 'md',
     status = 'unavailable',
     isOvInProgress = false,
+    visitOpen,
     className = '',
     imageClassName = '',
     badgeSrc,
@@ -55,6 +58,9 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     // Determine border color and weight
     const borderColor = statusColors[visualStatus];
     const borderWeight = '4px';
+    const border = visitOpen === false
+        ? 'none'
+        : `${borderWeight} solid ${visitOpen ? statusColors.busy : borderColor}`;
 
     const sizeClasses = {
         xs: 'w-7 h-7',
@@ -84,7 +90,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
                 size={size}
                 shape="circle"
                 style={{
-                    border: `${borderWeight} solid ${borderColor}`,
+                    border,
                     transition: 'border-color 0.3s ease, border-width 0.3s ease'
                 }}
                 className={`bg-slate-50 dark:bg-slate-800 w-full! h-full!`}

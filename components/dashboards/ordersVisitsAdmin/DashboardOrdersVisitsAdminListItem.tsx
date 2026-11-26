@@ -185,8 +185,7 @@ const DashboardOrdersVisitsAdminListItem: React.FC<DashboardOrdersVisitsAdminLis
                                         name={member.userName || ''}
                                         src={member.userAvatarUrl}
                                         size="md"
-                                        status={member.userIsAvailable ? 'available' : 'unavailable'}
-                                        className="border-2! border-emerald-500/50!"
+                                        visitOpen={Number(visit.ovStatusId) === 1}
                                     />
                                 </div>
                                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">

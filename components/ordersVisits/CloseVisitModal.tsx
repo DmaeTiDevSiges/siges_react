@@ -7,10 +7,24 @@ import { formatDurationHuman, getBrazilDateTimeInputValue, getNaiveDurationHours
 import { SuspendedReason, CauseReason } from '../../types';
 import { DialogShell } from '../ui/DialogShell';
 
+export interface VisitSituation {
+    statusId: number;
+    suspendedReasonId?: number;
+    causeReasonId: number;
+    progress: number;
+    endedAt?: string;
+}
+
 interface CloseVisitModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (data: { statusId: number; suspendedReasonId?: number; causeReasonId: number; progress: number; endedAt?: string }) => Promise<void>;
+    onConfirm: (data: VisitSituation) => Promise<void>;
+    /** 'review': conferência da situação ao marcar a visita como revisada (sem Cancelar). */
+    mode?: 'close' | 'review';
+    /** Valores já gravados, para o modal abrir preenchido. */
+    initialValues?: Partial<VisitSituation>;
+    /** Em revisão, libera o "Fechar" para ninguém ficar preso quando o salvamento falha. */
+    saveFailed?: boolean;
     isLoading?: boolean;
     visit?: any; // To check signatures
 }
@@ -20,8 +34,14 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     onClose,
     onConfirm,
     isLoading = false,
-    visit
+    visit,
+    mode = 'close',
+    initialValues,
+    saveFailed = false
 }) => {
+    const isReview = mode === 'review';
+    const canDismiss = !isLoading && (!isReview || saveFailed);
+    const title = isReview ? 'Marcar como Revisada' : 'Encerrar Visita';
     const [statusType, setStatusType] = useState<'concluded' | 'suspended' | null>(null);
     const [suspendedReasonId, setSuspendedReasonId] = useState<string>('');
     const [causeReasonId, setCauseReasonId] = useState<string>('');
@@ -31,7 +51,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     const [loadingReasons, setLoadingReasons] = useState(false);
     const [endedAtInput, setEndedAtInput] = useState<string>(() => getBrazilDateTimeInputValue());
 
-    const requiresManualEnd = visit?.isManualVisitStartEnd === true;
+    const requiresManualEnd = !isReview && visit?.isManualVisitStartEnd === true;
     const minEndAt = visit?.ovStartedAt ? getBrazilDateTimeInputValue(visit.ovStartedAt) : undefined;
     const durationHours = requiresManualEnd && visit?.ovStartedAt
         ? getNaiveDurationHours(visit.ovStartedAt, endedAtInput)
@@ -57,6 +77,11 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
             setProgress(50);
         } else {
             setEndedAtInput(getBrazilDateTimeInputValue());
+            const { statusId, suspendedReasonId: reasonId, causeReasonId: causeId, progress: percent } = initialValues || {};
+            setStatusType(statusId === 8 ? 'concluded' : statusId === 6 ? 'suspended' : null);
+            setSuspendedReasonId(reasonId ? String(reasonId) : '');
+            setCauseReasonId(causeId ? String(causeId) : '');
+            setProgress(percent && percent > 0 && percent < 100 ? percent : 50);
         }
     }, [isOpen]);
 
@@ -133,10 +158,10 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
     if (!isOpen) return null;
 
     return (
-        <DialogShell label="Encerrar visita" onClose={() => { if (!isLoading) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200">
+        <DialogShell label={title} onClose={() => { if (canDismiss) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pad-safe-4 animate-in fade-in duration-200">
             <Card className="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl rounded-[16px]! p-6 border border-slate-100 dark:border-slate-800">
                 <h2 className="text-xl font-black text-slate-900 dark:text-white mb-2 text-center">
-                    Encerrar Visita
+                    {title}
                 </h2>
 
                 <p className="text-center text-xs text-slate-400 dark:text-slate-500 font-bold mb-3 uppercase tracking-widest">
@@ -193,7 +218,7 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                     )}
 
                     {/* Signature Status Summary (Optional Reminder) */}
-                    {statusType === 'concluded' && visit && (
+                    {statusType === 'concluded' && visit && !isReview && (
                         <div className="bg-slate-50 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-100 dark:border-white/5 space-y-3 animate-in slide-in-from-top-4 duration-300">
                             <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Assinaturas Coletadas</h3>
                             <div className="flex flex-col gap-2">
@@ -274,13 +299,15 @@ export const CloseVisitModal: React.FC<CloseVisitModalProps> = ({
                     )}
 
                     <div className="flex gap-3 mt-8">
-                        <button
-                            onClick={onClose}
-                            className="flex-1 py-3 text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors"
-                            disabled={isLoading}
-                        >
-                            Cancelar
-                        </button>
+                        {(!isReview || saveFailed) && (
+                            <button
+                                onClick={onClose}
+                                className="flex-1 py-3 text-slate-400 font-bold hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                                disabled={isLoading}
+                            >
+                                {isReview ? 'Fechar' : 'Cancelar'}
+                            </button>
+                        )}
                         <button
                             onClick={handleConfirm}
                             disabled={!statusType || isLoading}

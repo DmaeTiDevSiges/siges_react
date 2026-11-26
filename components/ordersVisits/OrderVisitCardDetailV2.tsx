@@ -1,6 +1,7 @@
 import React from 'react';
 import { Select } from '../ui/Select';
 import { Loading } from '../ui/Loading';
+import { RemoveMemberButton } from './RemoveMemberButton';
 import { UserAvatar } from '../ui/UserAvatar';
 import { formatDateTime, getStatusConfig } from '../../utils/formatters';
 import { useVisitTeamAdd } from '../../hooks/useVisitTeamAdd';
@@ -135,7 +136,6 @@ export const OrderVisitCardDetailV2: React.FC<OrderVisitCardDetailProps> = ({
             <div className="mt-3 flex flex-wrap gap-3">
                 {team.map((member) => {
                     const firstName = member.userName?.split(' ')[0] || 'Nome';
-                    const available = member.userIsAvailable === true || (member.userIsAvailable as unknown) === 1 || (member.userIsAvailable as unknown) === 'true';
                     return (
                         <div key={member.userId} className="flex flex-col items-center gap-1">
                             <div className="relative flex h-14 w-14 items-center justify-center">
@@ -143,18 +143,10 @@ export const OrderVisitCardDetailV2: React.FC<OrderVisitCardDetailProps> = ({
                                     src={member.userAvatarUrl}
                                     name={member.userName || 'Membro'}
                                     size="md"
-                                    status={available ? 'available' : 'busy'}
-                                    isOvInProgress={visit.ovStatusId === 1}
+                                    visitOpen={Number(visit.ovStatusId) === 1}
                                 />
                                 {onRemoveTeamMember && !member.isLeader && !visit.isFiled && (
-                                    <button
-                                        type="button"
-                                        aria-label={`Remover ${firstName} da equipe`}
-                                        onClick={() => onRemoveTeamMember(member.userId)}
-                                        className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full bg-danger-soft text-danger transition-transform active:scale-90"
-                                    >
-                                        <span className="material-symbols-outlined text-[16px]" aria-hidden="true">delete</span>
-                                    </button>
+                                    <RemoveMemberButton label={`Remover ${firstName} da equipe`} onClick={() => onRemoveTeamMember(member.userId)} />
                                 )}
                             </div>
                             <span className="w-14 truncate text-center text-caption text-fg-muted">{firstName}</span>
