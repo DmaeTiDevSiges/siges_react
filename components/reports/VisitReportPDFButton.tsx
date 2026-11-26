@@ -9,6 +9,7 @@ import { imgproxyService } from '../../services/media/imgproxyService';
 import { PDFButton } from '../ui/PDFButton';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 import { getBrazilDateInputValue } from '../../utils/formatters';
+import { buildReportChat } from '../../utils/visitReportChat';
 
 
 
@@ -44,14 +45,16 @@ export const VisitReportPDFButton = ({
 
         try {
             // 1. Fetch all data in parallel
-            const [visit, team, vehicles, assets, services, allActivities, allMaterials] = await Promise.all([
+            const [visit, team, vehicles, assets, services, allActivities, allMaterials, chat] = await Promise.all([
                 dataService.getActiveOrderVisit(visitId),
                 dataService.getOrderVisitTeam(visitId),
                 dataService.getOrderVisitVehicles(visitId),
                 dataService.getOrderVisitAssets(visitId),
                 dataService.getOrderVisitServices(visitId),
                 dataService.getOrderVisitAssetsActivitiesByVisit(visitId),
-                dataService.getOrderVisitAssetsMaterialsByVisit(visitId)
+                dataService.getOrderVisitAssetsMaterialsByVisit(visitId),
+                // Chat é complemento: sem ele (ex.: offline) o relatório sai mesmo assim.
+                dataService.getVisitChatMessages(visitId).catch(() => []),
             ]);
 
             if (!visit) {
@@ -169,6 +172,7 @@ export const VisitReportPDFButton = ({
 
             // 3. Build report data object
             const reportData: VisitReportData = {
+                chatMessages: buildReportChat(chat),
                 visit: {
                     id: visit.id,
                     ovMask: visit.ovMask,

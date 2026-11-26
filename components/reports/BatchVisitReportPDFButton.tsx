@@ -7,6 +7,7 @@ import { BatchVisitReportDocument, VisitReportData } from './VisitReportDocument
 import { urlsToBase64, getLogoBase64, addWhiteBackgroundToImage } from '../../utils/PdfImageUtils';
 import { imgproxyService } from '../../services/media/imgproxyService';
 import { PDFButton } from '../ui/PDFButton';
+import { buildReportChat } from '../../utils/visitReportChat';
 import { HiOutlineDotsCircleHorizontal } from 'react-icons/hi';
 
 
@@ -82,14 +83,15 @@ export const BatchVisitReportPDFButton = ({
                 toast.loading(`Processando visita ${i + 1}/${sortedVisits.length}: ${visitItem.ovMask || visitId}`, { id: toastId });
 
                 // Fetch data for this specific visit
-                const [visit, team, vehicles, assets, services, allActivities, allMaterials] = await Promise.all([
+                const [visit, team, vehicles, assets, services, allActivities, allMaterials, chat] = await Promise.all([
                     dataService.getActiveOrderVisit(visitId),
                     dataService.getOrderVisitTeam(visitId),
                     dataService.getOrderVisitVehicles(visitId),
                     dataService.getOrderVisitAssets(visitId),
                     dataService.getOrderVisitServices(visitId),
                     dataService.getOrderVisitAssetsActivitiesByVisit(visitId),
-                    dataService.getOrderVisitAssetsMaterialsByVisit(visitId)
+                    dataService.getOrderVisitAssetsMaterialsByVisit(visitId),
+                    dataService.getVisitChatMessages(visitId).catch(() => []),
                 ]);
 
                 if (!visit) continue;
@@ -187,6 +189,7 @@ export const BatchVisitReportPDFButton = ({
                 }));
 
                 const reportData: VisitReportData = {
+                    chatMessages: buildReportChat(chat),
                     visit: {
                         ...visit,
                         statusDescription: visit.statusDescription,

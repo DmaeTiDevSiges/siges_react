@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatDateInBrazil } from '../../utils/formatters';
+import type { ReportChatMessage } from '../../utils/visitReportChat';
 
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
@@ -416,6 +417,8 @@ const styles = StyleSheet.create({
 // Types
 // ---------------------------------------------------------------------------
 export interface VisitReportData {
+    /** Chat da visita; a seção só aparece quando há mensagens. */
+    chatMessages?: ReportChatMessage[];
     // Visit details
     visit: {
         id: string;
@@ -628,8 +631,38 @@ const MetaRow = ({ label, value, boldValue = false }: { label: string; value: an
 // ---------------------------------------------------------------------------
 // Reusable Report Pages Component
 // ---------------------------------------------------------------------------
+/** Mensagem acima disto pode quebrar de página; as menores ficam inteiras. */
+const LONG_CHAT_MESSAGE = 600;
+/** A 1ª mensagem vai junto do título num bloco que não quebra: se for enorme, é cortada em partes. */
+const splitLongMessage = (m: ReportChatMessage): ReportChatMessage[] => {
+    if (m.message.length <= LONG_CHAT_MESSAGE) return [m];
+    const cut = m.message.lastIndexOf(' ', LONG_CHAT_MESSAGE);
+    const at = cut > LONG_CHAT_MESSAGE / 2 ? cut : LONG_CHAT_MESSAGE;
+    return [
+        { ...m, message: m.message.slice(0, at) },
+        ...splitLongMessage({ ...m, id: `${m.id}+`, userName: '', createdAt: '', tag: '', message: m.message.slice(at).trim() }),
+    ];
+};
+
+const renderChatMessage = (m: ReportChatMessage) => (
+    <View
+        key={m.id}
+        style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: C.lightGray, paddingVertical: 3 }}
+        wrap={false}
+    >
+        <View style={{ width: '22%', paddingRight: 6 }}>
+            {m.userName ? <Text style={{ fontSize: 7, fontWeight: 'bold' }}>{m.userName}</Text> : null}
+            {m.createdAt ? <Text style={{ fontSize: 6.5, color: '#6B7280' }}>{fmtFullDate(m.createdAt)}</Text> : null}
+        </View>
+        <View style={{ width: '78%' }}>
+            {m.tag ? <Text style={{ fontSize: 6.5, fontWeight: 'bold', color: C.primary, marginBottom: 1 }}>{m.tag.toUpperCase()}</Text> : null}
+            <Text style={{ fontSize: 8 }}>{m.message}</Text>
+        </View>
+    </View>
+);
+
 export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
-    const { visit, team = [], vehicles = [], services = [], assets = [] } = data;
+    const { visit, team = [], vehicles = [], services = [], assets = [], chatMessages = [] } = data;
 
     // Safe date for footer
     const now = new Date();
@@ -637,6 +670,7 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
 
     // Format team string safely
     const teamString = (team || []).map(m => m.userName).filter(Boolean).join(', ');
+    const chatParts = chatMessages.flatMap(splitLongMessage);
 
     return (
         <Page size="A4" style={styles.page}>
@@ -963,6 +997,18 @@ export const VisitReportPages = ({ data }: { data: VisitReportData }) => {
 
                     </View>
                 ) : null}
+
+                {/* ── CHAT DA VISITA (só quando existir) ───────────────────── */}
+                {chatParts.length > 0 && (
+                    <View style={{ marginTop: 10 }}>
+                        {/* Título + 1ª mensagem num bloco só: o título nunca fica sozinho no pé da página. */}
+                        <View wrap={false}>
+                            <Text style={styles.sectionTitle}>Chat da Visita ({chatMessages.length})</Text>
+                            {renderChatMessage(chatParts[0])}
+                        </View>
+                        {chatParts.slice(1).map(renderChatMessage)}
+                    </View>
+                )}
 
                 {/* ── ASSINATURAS (FOOTER - LAST PAGE ONLY) ────────────────── */}
                 <View 
