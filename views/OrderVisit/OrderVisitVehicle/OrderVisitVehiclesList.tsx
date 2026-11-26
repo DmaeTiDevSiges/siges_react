@@ -8,9 +8,13 @@ import { Card } from '../../../components/ui/Card';
 import { ButtonDelete } from '../../../components/ui/ButtonDelete';
 import { ButtonNew } from '../../../components/ui/ButtonNew';
 import { ConfirmDeleteModal } from '../../../components/ui/ConfirmDeleteModal';
+import { AlertModal } from '../../../components/ui/AlertModal';
+import { needsKmConfirmation } from '../../../utils/vehicleKm';
 import { toast } from 'sonner';
 import { Loading } from '../../../components/ui/Loading';
 
+
+type KmType = 'initial' | 'final';
 
 interface OrderVisitVehiclesListProps {
     visitId: string;
@@ -73,6 +77,9 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
         try {
             setLoading(true);
             const data = await dataService.getOrderVisitVehicles(visitId);
+            savedKmRef.current = Object.fromEntries(
+                data.map(v => [v.id, { initial: v.recorderStart, final: v.recorderEnd }])
+            );
             setVisitVehicles(data);
             // Contratos vigentes (um por veículo) para o botão de ociosidade
             // e Km final do último lançamento anterior (por registro, excluindo
@@ -236,71 +243,96 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
         }
     };
 
-    const handleUpdateKm = async (visitVehicleId: string, type: 'initial' | 'final', value: string) => {
+    // Percurso alto: pede confirmação antes de gravar (alteração do início ou do fim).
+    const [kmConfirm, setKmConfirm] = useState<{ id: string; type: KmType; plates: string; initial: number; final: number } | null>(null);
+    /** Último Km gravado por registro: é o valor devolvido ao campo quando a alteração não é salva. */
+    const savedKmRef = useRef<Record<string, Partial<Record<KmType, number>>>>({});
+
+    const setKmField = (id: string, type: KmType, value: number | undefined) => {
+        const field = type === 'initial' ? 'recorderStart' : 'recorderEnd';
+        setVisitVehicles(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+    };
+
+    const restoreKm = (id: string, type: KmType) => setKmField(id, type, savedKmRef.current[id]?.[type]);
+
+    const cancelKmConfirm = () => {
+        if (!kmConfirm) return;
+        restoreKm(kmConfirm.id, kmConfirm.type);
+        setKmConfirm(null);
+    };
+
+    const handleUpdateKm = async (visitVehicleId: string, type: KmType, value: string, confirmed = false) => {
+        const targetVehicle = visitVehicles.find(v => v.id === visitVehicleId);
+        if (!targetVehicle) return;
+
         // Use null instead of undefined to explicitly clear DB field
         const numValue = value ? parseFloat(value) : null;
+        const saved = savedKmRef.current[visitVehicleId]?.[type];
+        // Nada mudou: não valida, não pergunta e não grava
+        if (numValue === (saved ?? null)) return;
 
-        // Validation logic
-        const targetVehicle = visitVehicles.find(v => v.id === visitVehicleId);
-        let effectiveValue = numValue;
-        if (targetVehicle && numValue !== null) {
+        if (numValue !== null) {
             // Bloqueia Km inicial inferior ao Km final do ÚLTIMO LANÇAMENTO
             // anterior do veículo (registro atual excluído) — odômetro
             // progressivo
             if (type === 'initial') {
-                const lastKm = lastOdometers[targetVehicle.id];
+                const lastKm = lastOdometers[visitVehicleId];
                 if (lastKm != null && numValue < lastKm) {
                     toast.error(`Km inicial inválido: o Km final do lançamento anterior deste veículo é ${lastKm.toLocaleString('pt-BR')}. Informe um valor igual ou maior.`);
-                    // Limpa o campo inválido sem salvar
-                    setVisitVehicles(prev => prev.map(v => v.id === visitVehicleId ? { ...v, recorderStart: undefined } : v));
+                    restoreKm(visitVehicleId, type);
                     return;
                 }
             }
-            if (type === 'final' && targetVehicle.recorderStart != null && numValue < targetVehicle.recorderStart) {
-                // Km final menor que o inicial: valor corrigido para 0
-                effectiveValue = 0;
-                toast.warning('Valor final menor que o inicial — valor alterado para 0.');
+            // 0 no fim continua aceito (campo ainda não apurado)
+            if (type === 'final' && numValue !== 0 && targetVehicle.recorderStart != null && numValue < targetVehicle.recorderStart) {
+                toast.warning('Valor final menor que o inicial — mantido o valor anterior.');
+                restoreKm(visitVehicleId, type);
+                return;
             }
             if (type === 'initial' && targetVehicle.recorderEnd != null && targetVehicle.recorderEnd > 0 && numValue > targetVehicle.recorderEnd) {
                 toast.warning('Aviso: Valor inicial maior que o final.');
             }
         }
 
+        const newStart = type === 'initial' ? (numValue ?? undefined) : targetVehicle.recorderStart;
+        const newEnd = type === 'final' ? (numValue ?? undefined) : targetVehicle.recorderEnd;
+
+        if (!confirmed && needsKmConfirmation(newStart, newEnd)) {
+            setKmConfirm({ id: visitVehicleId, type, plates: targetVehicle.plates || '', initial: newStart!, final: newEnd! });
+            return;
+        }
+
         // Optimistic update for UI responsiveness
+        savedKmRef.current[visitVehicleId] = { ...savedKmRef.current[visitVehicleId], [type]: numValue ?? undefined };
         setVisitVehicles(prev => prev.map(v => {
-            if (v.id === visitVehicleId) {
-                const newStart = type === 'initial' ? (effectiveValue ?? undefined) : v.recorderStart;
-                const newEnd = type === 'final' ? (effectiveValue ?? undefined) : v.recorderEnd;
-
-                // Recalculate total optimistically
-                let newValueTotal = v.valueTotal;
-                if (newStart != null && newEnd != null) {
-                    const diff = Math.max(0, newEnd - newStart);
-                    newValueTotal = diff * (v.valueUnit || 0);
-                }
-
-                return {
-                    ...v,
-                    [type === 'initial' ? 'recorderStart' : 'recorderEnd']: effectiveValue ?? undefined,
-                    valueTotal: newValueTotal
-                };
-            }
-            return v;
+            if (v.id !== visitVehicleId) return v;
+            // Recalculate total optimistically
+            const valueTotal = newStart != null && newEnd != null
+                ? Math.max(0, newEnd - newStart) * (v.valueUnit || 0)
+                : v.valueTotal;
+            return { ...v, recorderStart: newStart, recorderEnd: newEnd, valueTotal };
         }));
 
         try {
             // Force cast to any to allow null until service is updated
             await dataService.updateVehicleKm(
                 visitVehicleId,
-                type === 'initial' ? (effectiveValue as any) : undefined,
-                type === 'final' ? (effectiveValue as any) : undefined
+                type === 'initial' ? (numValue as any) : undefined,
+                type === 'final' ? (numValue as any) : undefined
             );
             if (onVisitRefresh) onVisitRefresh();
         } catch (error: any) {
             console.error('Error updating KM:', error);
             toast.error(`Erro ao salvar KM: ${error.message || 'Erro desconhecido'}`);
-            // Revert on error would be ideal, but simple reload works too
-            loadVehicles();
+            // Devolve o valor original sem recarregar a lista
+            savedKmRef.current[visitVehicleId] = { ...savedKmRef.current[visitVehicleId], [type]: saved };
+            setVisitVehicles(prev => prev.map(v => v.id === visitVehicleId
+                ? {
+                    ...v,
+                    [type === 'initial' ? 'recorderStart' : 'recorderEnd']: saved,
+                    valueTotal: targetVehicle.valueTotal,
+                }
+                : v));
         }
     };
 
@@ -500,7 +532,7 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                                         inputMode="numeric"
                                         placeholder="0"
                                         disabled={!isEditable}
-                                        value={vv.recorderStart || ''}
+                                        value={vv.recorderStart ?? ''}
                                         onBlur={(e) => handleUpdateKm(vv.id, 'initial', e.target.value)}
                                         onChange={(e) => {
                                             // Optional: Local state update only if needed for smooth typing, 
@@ -675,6 +707,36 @@ export const OrderVisitVehiclesList: React.FC<OrderVisitVehiclesListProps> = ({
                     </div>
                 )}
             </div>
+            {/* Confirmação do percurso alto */}
+            <AlertModal
+                isOpen={!!kmConfirm}
+                onClose={cancelKmConfirm}
+                icon="speed"
+                iconClassName="text-amber-500"
+                iconBgClassName="bg-amber-50 dark:bg-amber-900/20"
+                iconRingClassName="ring-amber-50/50 dark:ring-amber-900/10"
+                title="Confirmar quilometragem"
+                description={kmConfirm ? (
+                    <>
+                        Confira os valores{kmConfirm.plates ? <> do veículo <strong>{kmConfirm.plates}</strong></> : null}:
+                        <br />Início: <strong>{kmConfirm.initial.toLocaleString('pt-BR')} km</strong>
+                        <br />Fim: <strong>{kmConfirm.final.toLocaleString('pt-BR')} km</strong>
+                        <br />Diferença: <strong>{(kmConfirm.final - kmConfirm.initial).toLocaleString('pt-BR')} km</strong>
+                    </>
+                ) : undefined}
+                primaryAction={{
+                    label: 'Confirmar',
+                    variant: 'primary',
+                    onClick: () => {
+                        if (!kmConfirm) return;
+                        const { id, type, initial, final } = kmConfirm;
+                        setKmConfirm(null);
+                        void handleUpdateKm(id, type, String(type === 'initial' ? initial : final), true);
+                    },
+                }}
+                secondaryAction={{ label: 'Corrigir', onClick: cancelKmConfirm }}
+            />
+
             {/* Modal de Exclusão */}
             <ConfirmDeleteModal
                 isOpen={!!vehicleToDelete}
